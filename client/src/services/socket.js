@@ -6,7 +6,11 @@ const SOCKET_URL =
 let socket = null;
 
 export const connectSocket = (token) => {
-  if (socket?.connected) {
+  if (!token) {
+    return null;
+  }
+
+  if (socket) {
     return socket;
   }
 
@@ -20,13 +24,16 @@ export const connectSocket = (token) => {
   return socket;
 };
 
-export const getSocket = () => socket;
-
-export const disconnectSocket = () => {
-  if (socket) {
-    socket.disconnect();
-    socket = null;
-  }
+export const getSocket = () => {
+  return socket;
 };
 
-export default socket;
+export const disconnectSocket = () => {
+  if (!socket) {
+    return;
+  }
+
+  socket.removeAllListeners();
+  socket.disconnect();
+  socket = null;
+};

@@ -1,4 +1,11 @@
-import { createContext, useContext, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from "react";
+import { DEFAULT_LANGUAGE } from "../utils/constants";
 
 const EditorContext = createContext(null);
 
@@ -8,97 +15,169 @@ export const EditorProvider = ({ children }) => {
   const [files, setFiles] = useState([]);
   const [openFiles, setOpenFiles] = useState([]);
   const [activeFile, setActiveFile] = useState(null);
-  const [language, setLanguage] = useState("javascript");
+  const [language, setLanguage] = useState(DEFAULT_LANGUAGE);
   const [output, setOutput] = useState("");
   const [isRunning, setIsRunning] = useState(false);
 
-  const selectFile = (file) => {
+  const selectFile = useCallback((file) => {
+    if (!file) return;
+
     setActiveFile(file);
 
-    const alreadyOpen = openFiles.some(
-      (openFile) =>
-        openFile.id === file.id || openFile.path === file.path
-    );
+    setOpenFiles((currentFiles) => {
+      const alreadyOpen = currentFiles.some(
+        (openFile) =>
+          openFile.id === file.id || openFile.path === file.path
+      );
 
-    if (!alreadyOpen) {
-      setOpenFiles((currentFiles) => [...currentFiles, file]);
-    }
+      return alreadyOpen ? currentFiles : [...currentFiles, file];
+    });
 
     if (file.language) {
       setLanguage(file.language);
     }
-  };
+  }, []);
 
-  const closeFile = (file) => {
-    setOpenFiles((currentFiles) =>
-      currentFiles.filter(
+  const closeFile = useCallback((file) => {
+    if (!file) return;
+
+    setOpenFiles((currentFiles) => {
+      const index = currentFiles.findIndex(
+        (openFile) =>
+          openFile.id === file.id || openFile.path === file.path
+      );
+
+      const updatedFiles = currentFiles.filter(
         (openFile) =>
           openFile.id !== file.id && openFile.path !== file.path
-      )
-    );
+      );
 
-    if (
-      activeFile?.id === file.id ||
-      activeFile?.path === file.path
-    ) {
-      setActiveFile(null);
-    }
-  };
+      const isActive =
+        activeFile?.id === file.id ||
+        activeFile?.path === file.path;
 
-  const updateFileContent = (content) => {
-    if (!activeFile) return;
+      if (isActive) {
+        const nextFile =
+          updatedFiles[index] ||
+          updatedFiles[index - 1] ||
+          null;
+
+        setActiveFile(nextFile);
+
+        if (nextFile?.language) {
+          setLanguage(nextFile.language);
+        }
+      }
+
+      return updatedFiles;
+    });
+  }, [activeFile]);
+
+  const updateFileContent = useCallback(
+    (content) => {
+      if (!activeFile) return;
+
+      const isSameFile = (file) =>
+        file.id === activeFile.id ||
+        file.path === activeFile.path;
+
+      setFiles((currentFiles) =>
+        currentFiles.map((file) =>
+          isSameFile(file)
+            ? { ...file, content }
+            : file
+        )
+      );
+
+      setActiveFile((currentFile) =>
+        currentFile
+          ? { ...currentFile, content }
+          : currentFile
+      );
+
+      setOpenFiles((currentFiles) =>
+        currentFiles.map((file) =>
+          isSameFile(file)
+            ? { ...file, content }
+            : file
+        )
+      );
+    },
+    [activeFile]
+  );
+
+  const updateFile = useCallback((updatedFile) => {
+    if (!updatedFile) return;
+
+    const isSameFile = (file) =>
+      file.id === updatedFile.id ||
+      file.path === updatedFile.path;
 
     setFiles((currentFiles) =>
       currentFiles.map((file) =>
-        file.id === activeFile.id || file.path === activeFile.path
-          ? { ...file, content }
+        isSameFile(file)
+          ? { ...file, ...updatedFile }
+          : file
+      )
+    );
+
+    setOpenFiles((currentFiles) =>
+      currentFiles.map((file) =>
+        isSameFile(file)
+          ? { ...file, ...updatedFile }
           : file
       )
     );
 
     setActiveFile((currentFile) =>
-      currentFile ? { ...currentFile, content } : currentFile
+      currentFile && isSameFile(currentFile)
+        ? { ...currentFile, ...updatedFile }
+        : currentFile
     );
 
-    setOpenFiles((currentFiles) =>
-      currentFiles.map((file) =>
-        file.id === activeFile.id || file.path === activeFile.path
-          ? { ...file, content }
-          : file
-      )
-    );
-  };
+    if (updatedFile.language) {
+      setLanguage(updatedFile.language);
+    }
+  }, []);
 
-  const resetEditor = () => {
+  const resetEditor = useCallback(() => {
     setRoom(null);
     setProject(null);
     setFiles([]);
     setOpenFiles([]);
     setActiveFile(null);
-    setLanguage("javascript");
+    setLanguage(DEFAULT_LANGUAGE);
     setOutput("");
     setIsRunning(false);
-  };
+  }, []);
 
   const value = useMemo(
     () => ({
       room,
       setRoom,
+
       project,
       setProject,
+
       files,
       setFiles,
+
       openFiles,
       activeFile,
+
       language,
-      output,
-      isRunning,
       setLanguage,
+
+      output,
       setOutput,
+
+      isRunning,
       setIsRunning,
+
       selectFile,
       closeFile,
       updateFileContent,
+      updateFile,
       resetEditor,
     }),
     [
@@ -110,6 +189,11 @@ export const EditorProvider = ({ children }) => {
       language,
       output,
       isRunning,
+      selectFile,
+      closeFile,
+      updateFileContent,
+      updateFile,
+      resetEditor,
     ]
   );
 

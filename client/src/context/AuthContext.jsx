@@ -1,14 +1,27 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import { api } from "../services/api";
+import { STORAGE_KEYS } from "../utils/constants";
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(
-    () => localStorage.getItem("codeSync_token")
+    () => localStorage.getItem(STORAGE_KEYS.TOKEN)
   );
   const [loading, setLoading] = useState(true);
+
+  const logout = useCallback(() => {
+    localStorage.removeItem(STORAGE_KEYS.TOKEN);
+    setToken(null);
+    setUser(null);
+  }, []);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -33,14 +46,14 @@ export const AuthProvider = ({ children }) => {
     };
 
     loadUser();
-  }, [token]);
+  }, [token, logout]);
 
   const login = async (credentials) => {
     const response = await api.post("/auth/login", credentials);
 
     const { token: newToken, user: loggedInUser } = response.data;
 
-    localStorage.setItem("codeSync_token", newToken);
+    localStorage.setItem(STORAGE_KEYS.TOKEN, newToken);
 
     setToken(newToken);
     setUser(loggedInUser);
@@ -53,7 +66,7 @@ export const AuthProvider = ({ children }) => {
 
     const { token: newToken, user: registeredUser } = response.data;
 
-    localStorage.setItem("codeSync_token", newToken);
+    localStorage.setItem(STORAGE_KEYS.TOKEN, newToken);
 
     setToken(newToken);
     setUser(registeredUser);
@@ -61,18 +74,12 @@ export const AuthProvider = ({ children }) => {
     return registeredUser;
   };
 
-  const logout = () => {
-    localStorage.removeItem("codeSync_token");
-    setToken(null);
-    setUser(null);
-  };
-
-  const updateUser = (updatedUser) => {
+  const updateUser = useCallback((updatedUser) => {
     setUser((currentUser) => ({
       ...currentUser,
       ...updatedUser,
     }));
-  };
+  }, []);
 
   const value = {
     user,
