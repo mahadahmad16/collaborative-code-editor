@@ -1,70 +1,116 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+
 import Navbar from "../components/Navbar";
-import { isValidRoomId } from "../utils/helpers";
+import useAuth from "../hooks/useAuth";
+
+import { api } from "../services/api";
+import {
+  getErrorMessage,
+  isValidRoomId,
+} from "../utils/helpers";
 
 const JoinRoom = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [roomId, setRoomId] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
-    const value = roomId.trim();
+    const trimmedRoomId = roomId.trim();
 
-    if (!isValidRoomId(value)) {
+    if (!trimmedRoomId) {
+      setError("Please enter a room ID.");
+      return;
+    }
+
+    if (!isValidRoomId(trimmedRoomId)) {
       setError("Please enter a valid room ID.");
       return;
     }
 
-    navigate(`/editor/${value}`);
+    try {
+      setLoading(true);
+      setError("");
+
+      await api.post(
+        `/rooms/${trimmedRoomId}/join`
+      );
+
+      navigate(`/editor/${trimmedRoomId}`);
+    } catch (requestError) {
+      setError(
+        getErrorMessage(
+          requestError,
+          "Unable to join this room."
+        )
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="app-shell">
+    <div className="app-page">
       <Navbar />
 
       <main className="form-page">
-        <section className="form-card form-card--compact">
+        <div className="form-card">
           <div className="form-card__header">
-            <Link to="/dashboard" className="back-link">
-              ← Back to dashboard
-            </Link>
+            <span className="form-card__eyebrow">
+              Collaboration
+            </span>
 
-            <span className="eyebrow">Join workspace</span>
-            <h1>Join a coding room</h1>
+            <h1>Join a room</h1>
+
             <p>
-              Enter the room ID shared by your teammate.
+              Enter the room ID shared by your teammate to join
+              their workspace.
             </p>
           </div>
 
-          <form className="room-form" onSubmit={handleSubmit}>
-            {error && <div className="form-error">{error}</div>}
+          <form onSubmit={handleSubmit}>
+            <div className="form-group">
+              <label htmlFor="roomId">Room ID</label>
 
-            <label>
-              Room ID
               <input
+                id="roomId"
                 type="text"
-                placeholder="Enter room ID"
                 value={roomId}
-                onChange={(event) => {
-                  setRoomId(event.target.value);
-                  setError("");
-                }}
-                autoFocus
+                onChange={(event) =>
+                  setRoomId(event.target.value)
+                }
+                placeholder="e.g. a83f91c2e7"
+                autoComplete="off"
               />
-            </label>
+
+              {error && (
+                <span className="form-error">
+                  {error}
+                </span>
+              )}
+            </div>
 
             <button
               className="button button--primary button--full"
               type="submit"
+              disabled={loading}
             >
-              Join room
+              {loading ? "Joining..." : "Join room"}
             </button>
           </form>
-        </section>
+
+          {user && (
+            <p className="form-card__footer">
+              Joining as{" "}
+              <strong>{user.name}</strong>
+            </p>
+          )}
+        </div>
       </main>
     </div>
   );

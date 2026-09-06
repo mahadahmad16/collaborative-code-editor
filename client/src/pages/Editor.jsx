@@ -53,47 +53,41 @@ const Editor = () => {
   const isRemoteUpdate = useRef(false);
 
   useEffect(() => {
-    if (!roomId) {
-      navigate("/dashboard", { replace: true });
-      return;
-    }
+  if (!roomId) {
+    navigate("/dashboard", { replace: true });
+    return;
+  }
 
-    const loadRoom = async () => {
-      try {
-        setLoading(true);
-        setRoomError("");
+  const loadRoom = async () => {
+    try {
+      setLoading(true);
+      setRoomError("");
 
-        const response = await api.get("/rooms");
+      const response = await api.get(
+        `/rooms/${roomId}`
+      );
 
-        const rooms = response.data.rooms || [];
+      const currentRoom = response.data.room;
 
-        const currentRoom = rooms.find(
-          (item) =>
-            String(item.id || item._id) === String(roomId)
-        );
+      setRoom(currentRoom);
 
-        if (!currentRoom) {
-          setRoomError("The requested room could not be found.");
-          return;
-        }
-
-        setRoom(currentRoom);
-
-        if (currentRoom.files?.length) {
-          setFiles(currentRoom.files);
-        }
-      } catch (error) {
-        setRoomError(
-          getErrorMessage(error, "Unable to load this room.")
-        );
-      } finally {
-        setLoading(false);
+      if (currentRoom.project?.files?.length) {
+        setFiles(currentRoom.project.files);
       }
-    };
+    } catch (error) {
+      setRoomError(
+        getErrorMessage(
+          error,
+          "Unable to load this room."
+        )
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    loadRoom();
-  }, [roomId, navigate, setRoom, setFiles]);
-
+  loadRoom();
+}, [roomId, navigate, setRoom, setFiles]);
   useEffect(() => {
     if (!socket || !roomId || loading || roomError) {
       return;

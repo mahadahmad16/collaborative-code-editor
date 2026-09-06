@@ -19,24 +19,29 @@ export const EditorProvider = ({ children }) => {
   const [output, setOutput] = useState("");
   const [isRunning, setIsRunning] = useState(false);
 
+  const getFileId = (file) => file?.id || file?._id || file?.path;
+
+  const isSameFile = (firstFile, secondFile) => getFileId(firstFile) === getFileId(secondFile);
+
   const selectFile = useCallback((file) => {
-    if (!file) return;
+  if (!file) return;
 
-    setActiveFile(file);
+  setActiveFile(file);
 
-    setOpenFiles((currentFiles) => {
-      const alreadyOpen = currentFiles.some(
-        (openFile) =>
-          openFile.id === file.id || openFile.path === file.path
-      );
+  setOpenFiles((currentFiles) => {
+    const alreadyOpen = currentFiles.some(
+      (openFile) => isSameFile(openFile, file)
+    );
 
-      return alreadyOpen ? currentFiles : [...currentFiles, file];
-    });
+    return alreadyOpen
+      ? currentFiles
+      : [...currentFiles, file];
+  });
 
-    if (file.language) {
-      setLanguage(file.language);
-    }
-  }, []);
+  if (file.language) {
+    setLanguage(file.language);
+  }
+}, []);
 
   const closeFile = useCallback((file) => {
     if (!file) return;
@@ -107,38 +112,34 @@ export const EditorProvider = ({ children }) => {
   );
 
   const updateFile = useCallback((updatedFile) => {
-    if (!updatedFile) return;
+  if (!updatedFile) return;
 
-    const isSameFile = (file) =>
-      file.id === updatedFile.id ||
-      file.path === updatedFile.path;
+  setFiles((currentFiles) =>
+    currentFiles.map((file) =>
+      isSameFile(file, updatedFile)
+        ? { ...file, ...updatedFile }
+        : file
+    )
+  );
 
-    setFiles((currentFiles) =>
-      currentFiles.map((file) =>
-        isSameFile(file)
-          ? { ...file, ...updatedFile }
-          : file
-      )
-    );
+  setOpenFiles((currentFiles) =>
+    currentFiles.map((file) =>
+      isSameFile(file, updatedFile)
+        ? { ...file, ...updatedFile }
+        : file
+    )
+  );
 
-    setOpenFiles((currentFiles) =>
-      currentFiles.map((file) =>
-        isSameFile(file)
-          ? { ...file, ...updatedFile }
-          : file
-      )
-    );
+  setActiveFile((currentFile) =>
+    currentFile && isSameFile(currentFile, updatedFile)
+      ? { ...currentFile, ...updatedFile }
+      : currentFile
+  );
 
-    setActiveFile((currentFile) =>
-      currentFile && isSameFile(currentFile)
-        ? { ...currentFile, ...updatedFile }
-        : currentFile
-    );
-
-    if (updatedFile.language) {
-      setLanguage(updatedFile.language);
-    }
-  }, []);
+  if (updatedFile.language) {
+    setLanguage(updatedFile.language);
+  }
+}, []);
 
   const resetEditor = useCallback(() => {
     setRoom(null);

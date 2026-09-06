@@ -18,7 +18,9 @@ const getFileIcon = (language) => {
 const FileItem = ({ file, active = false, onClick }) => {
   return (
     <button
-      className={`file-item ${active ? "file-item--active" : ""}`}
+      className={`file-item ${
+        active ? "file-item--active" : ""
+      }`}
       type="button"
       onClick={onClick}
     >
@@ -26,7 +28,9 @@ const FileItem = ({ file, active = false, onClick }) => {
         {getFileIcon(file.language)}
       </span>
 
-      <span className="file-item__name">{file.name}</span>
+      <span className="file-item__name">
+        {file.name}
+      </span>
     </button>
   );
 };
