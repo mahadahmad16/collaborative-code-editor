@@ -1693,3 +1693,260 @@ select:focus {
     right: -8px;
   }
 }
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.65);
+}
+
+.modal {
+  width: min(420px, 100%);
+  background: #0d0f15;
+  border: 1px solid #272b36;
+  border-radius: 14px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 22px 22px 18px;
+  border-bottom: 1px solid #272b36;
+}
+
+.modal__header h3 {
+  margin: 6px 0 0;
+  font-size: 20px;
+}
+
+.modal__close {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #9ca3b5;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.modal__close:hover {
+  background: #171a22;
+  color: #ffffff;
+}
+
+.modal__body {
+  padding: 22px;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 8px;
+  color: #e7e9ef;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.form-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 13px;
+  border: 1px solid #303542;
+  border-radius: 8px;
+  outline: none;
+  background: #080a0f;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.form-input::placeholder {
+  color: #646b7b;
+}
+
+.form-input:focus {
+  border-color: #7c5cff;
+  box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.12);
+}
+
+.modal__hint {
+  margin: 10px 0 0;
+  color: #777f91;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 22px 22px;
+}
+
+.modal__footer .button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.file-item-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.file-item-wrapper .file-item {
+  flex: 1;
+  min-width: 0;
+}
+
+.file-item__menu-button {
+  width: 28px;
+  height: 28px;
+  margin-right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #737b8f;
+
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+
+  opacity: 0;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.file-item-wrapper:hover .file-item__menu-button,
+.file-item-wrapper:focus-within .file-item__menu-button {
+  opacity: 1;
+}
+
+.file-item__menu-button:hover {
+  background: #1b1e28;
+  color: #ffffff;
+}
+
+.file-item__menu-button:active {
+  background: #252936;
+}
+
+.file-item__menu {
+  position: absolute;
+  top: calc(100% - 2px);
+  right: 6px;
+  z-index: 100;
+
+  min-width: 140px;
+  padding: 5px;
+
+  background: #11141c;
+  border: 1px solid #292e3a;
+  border-radius: 9px;
+
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.45),
+    0 2px 8px rgba(0, 0, 0, 0.25);
+
+  animation: file-menu-in 0.12s ease-out;
+}
+
+.file-item__menu button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+
+  padding: 9px 10px;
+
+  border: 0;
+  border-radius: 6px;
+
+  background: transparent;
+  color: #c7ccd8;
+
+  font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.file-item__menu button:hover {
+  background: #1c202a;
+  color: #ffffff;
+}
+
+.file-item__menu button:first-child:hover {
+  color: #b9a5ff;
+}
+
+.file-item__menu button:last-child:hover {
+  color: #ff7b86;
+}
+
+@keyframes file-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.file-item__rename-form {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 6px;
+}
+
+.file-item__rename-input {
+  width: 100%;
+  min-width: 0;
+  padding: 5px 7px;
+
+  border: 1px solid #7c5cff;
+  border-radius: 5px;
+
+  outline: none;
+  background: #080a0f;
+  color: #ffffff;
+
+  font-family: inherit;
+  font-size: 13px;
+
+  box-shadow:
+    0 0 0 2px
+    rgba(124, 92, 255, 0.12);
+}
+
+.file-item__rename-input:focus {
+  border-color: #9b85ff;
+}

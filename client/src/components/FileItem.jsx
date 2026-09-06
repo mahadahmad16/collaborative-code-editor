@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const getFileIcon = (language) => {
   const icons = {
@@ -30,15 +30,40 @@ const FileItem = ({
   const [showMenu, setShowMenu] =
     useState(false);
 
-  const handleRename = () => {
-    setShowMenu(false);
+  const [showRename, setShowRename] =
+    useState(false);
 
-    const newName = window.prompt(
-      "Enter new file name:",
-      file.name
-    );
+  const [newName, setNewName] =
+    useState(file.name);
 
-    if (!newName?.trim()) {
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (showRename) {
+      setNewName(file.name);
+
+      setTimeout(() => {
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      }, 0);
+    }
+  }, [showRename, file.name]);
+
+  const handleRenameSubmit = (
+    event
+  ) => {
+    event.preventDefault();
+
+    const name = newName.trim();
+
+    if (!name) {
+      return;
+    }
+
+    if (
+      name.includes("/") ||
+      name.includes("\\")
+    ) {
       return;
     }
 
@@ -47,15 +72,18 @@ const FileItem = ({
 
     pathParts[
       pathParts.length - 1
-    ] = newName.trim();
+    ] = name;
 
     const newPath =
       pathParts.join("/");
 
     onRename?.(
-      newName.trim(),
+      name,
       newPath
     );
+
+    setShowRename(false);
+    setShowMenu(false);
   };
 
   const handleDelete = () => {
@@ -81,57 +109,99 @@ const FileItem = ({
           : ""
       }`}
     >
-      <button
-        className={`file-item ${
-          active
-            ? "file-item--active"
-            : ""
-        }`}
-        type="button"
-        onClick={onClick}
-      >
-        <span className="file-item__icon">
-          {getFileIcon(
-            file.language
+      {showRename ? (
+        <form
+          className="file-item__rename-form"
+          onSubmit={
+            handleRenameSubmit
+          }
+        >
+          <span className="file-item__icon">
+            {getFileIcon(
+              file.language
+            )}
+          </span>
+
+          <input
+            ref={inputRef}
+            className="file-item__rename-input"
+            value={newName}
+            onChange={(event) =>
+              setNewName(
+                event.target.value
+              )
+            }
+            onKeyDown={(event) => {
+              if (
+                event.key === "Escape"
+              ) {
+                setShowRename(false);
+              }
+            }}
+          />
+        </form>
+      ) : (
+        <>
+          <button
+            className={`file-item ${
+              active
+                ? "file-item--active"
+                : ""
+            }`}
+            type="button"
+            onClick={onClick}
+          >
+            <span className="file-item__icon">
+              {getFileIcon(
+                file.language
+              )}
+            </span>
+
+            <span className="file-item__name">
+              {file.name}
+            </span>
+          </button>
+
+          <button
+            className="file-item__menu-button"
+            type="button"
+            aria-label={`Options for ${file.name}`}
+            title="File options"
+            onClick={(event) => {
+              event.stopPropagation();
+
+              setShowMenu(
+                (current) =>
+                  !current
+              );
+            }}
+          >
+            ⋮
+          </button>
+
+          {showMenu && (
+            <div className="file-item__menu">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowRename(true);
+                  setShowMenu(false);
+                }}
+              >
+                Rename
+              </button>
+
+              <button
+                type="button"
+                onClick={
+                  handleDelete
+                }
+              >
+                Delete
+              </button>
+            </div>
           )}
-        </span>
-
-        <span className="file-item__name">
-          {file.name}
-        </span>
-      </button>
-
-      <button
-        className="file-item__menu-button"
-        type="button"
-        aria-label={`Options for ${file.name}`}
-        onClick={(event) => {
-          event.stopPropagation();
-
-          setShowMenu(
-            (current) => !current
-          );
-        }}
-      >
-        ⋯
-      </button>
-
-      {showMenu && (
-        <div className="file-item__menu">
-          <button
-            type="button"
-            onClick={handleRename}
-          >
-            Rename
-          </button>
-
-          <button
-            type="button"
-            onClick={handleDelete}
-          >
-            Delete
-          </button>
-        </div>
+        </>
       )}
     </div>
   );

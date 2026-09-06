@@ -25,7 +25,7 @@ const Editor = () => {
   const { roomId } = useParams();
   const navigate = useNavigate();
 
-  const { token } = useAuth();
+  const { token, user } = useAuth();
 
   const {
     room,
@@ -213,118 +213,91 @@ const Editor = () => {
      * File created
      */
     const handleFileCreated = ({
+  file,
+  userId,
+}) => {
+  if (!file) {
+    return;
+  }
+
+  setFiles((currentFiles) => {
+    const newFileId = String(
+      getFileId(file)
+    );
+
+    const exists =
+      currentFiles.some(
+        (currentFile) =>
+          String(
+            getFileId(currentFile)
+          ) === newFileId ||
+          currentFile.path ===
+            file.path
+      );
+
+    if (exists) {
+      return currentFiles;
+    }
+
+    return [
+      ...currentFiles,
       file,
-    }) => {
-      if (!file) {
-        return;
-      }
+    ];
+  });
 
-      setFiles((currentFiles) => {
-        const newFileId =
-          getFileId(file);
-
-        const exists =
-          currentFiles.some(
-            (currentFile) =>
-              getFileId(
-                currentFile
-              ) === newFileId ||
-              currentFile.path ===
-                file.path
-          );
-
-        if (exists) {
-          return currentFiles;
-        }
-
-        return [
-          ...currentFiles,
-          file,
-        ];
-      });
-    };
+  if (
+    String(userId) ===
+    String(user?.id || user?._id)
+  ) {
+    selectFile(file);
+  }
+};
 
     /*
      * File deleted
      */
-    const handleFileDeleted = ({
-      file,
-    }) => {
-      if (!file) {
-        return;
-      }
+    const handleFileDeleted = ({ file }) => {
+  if (!file) {
+    return;
+  }
 
-      const deletedFileId =
-        getFileId(file);
+  const deletedFileId = String(
+    getFileId(file)
+  );
 
-      setFiles((currentFiles) =>
-        currentFiles.filter(
-          (currentFile) =>
-            getFileId(
-              currentFile
-            ) !==
-            deletedFileId
-        )
-      );
+  setFiles((currentFiles) =>
+    currentFiles.filter(
+      (currentFile) =>
+        String(
+          getFileId(currentFile)
+        ) !== deletedFileId
+    )
+  );
 
-      /*
-       * If the deleted file is currently
-       * active, close it.
-       */
-      if (
-        activeFile &&
-        getFileId(activeFile) ===
-          deletedFileId
-      ) {
-        closeFile(
-          deletedFileId
-        );
-      }
-    };
+  if (
+    activeFile &&
+    String(
+      getFileId(activeFile)
+    ) === deletedFileId
+  ) {
+    closeFile(file);
+  }
+};    
 
-    /*
-     * File renamed
-     */
     const handleFileRenamed = ({
-      file,
-    }) => {
-      if (!file) {
-        return;
-      }
+  file,
+}) => {
+  if (!file) {
+    return;
+  }
 
-      const renamedFileId =
-        getFileId(file);
-
-      setFiles((currentFiles) =>
-        currentFiles.map(
-          (currentFile) => {
-            if (
-              getFileId(
-                currentFile
-              ) !== renamedFileId
-            ) {
-              return currentFile;
-            }
-
-            return {
-              ...currentFile,
-              id:
-                currentFile.id ||
-                file.id,
-              _id:
-                currentFile._id ||
-                file.id,
-              name: file.name,
-              path: file.path,
-              language:
-                file.language ||
-                currentFile.language,
-            };
-          }
-        )
-      );
-    };
-
+  updateFile({
+    id: file.id || file._id,
+    name: file.name,
+    path: file.path,
+    language: file.language,
+  });
+};
     /*
      * Chat
      */
