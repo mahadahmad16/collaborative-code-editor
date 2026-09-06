@@ -41,12 +41,26 @@ export const DEFAULT_LANGUAGE = LANGUAGES.JAVASCRIPT;
 export const SOCKET_EVENTS = {
   JOIN_ROOM: "join-room",
   LEAVE_ROOM: "leave-room",
+
   ROOM_USERS: "room-users",
+
   CODE_CHANGE: "code-change",
   CODE_UPDATE: "code-update",
+
+  FILE_CREATE: "file-create",
+  FILE_CREATED: "file-created",
+
+  FILE_DELETE: "file-delete",
+  FILE_DELETED: "file-deleted",
+
+  FILE_RENAME: "file-rename",
+  FILE_RENAMED: "file-renamed",
+
   USER_JOINED: "user-joined",
   USER_LEFT: "user-left",
+
   CURSOR_MOVE: "cursor-move",
+
   CHAT_MESSAGE: "chat-message",
   USER_TYPING: "user-typing",
 };

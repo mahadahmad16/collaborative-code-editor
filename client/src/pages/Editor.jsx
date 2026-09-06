@@ -18,11 +18,14 @@ import { api } from "../services/api";
 import { SOCKET_EVENTS } from "../utils/constants";
 import { getErrorMessage } from "../utils/helpers";
 
+const getFileId = (file) =>
+  file?.id || file?._id || file?.path;
+
 const Editor = () => {
   const { roomId } = useParams();
   const navigate = useNavigate();
 
-  const { token, user } = useAuth();
+  const { token } = useAuth();
 
   const {
     room,
@@ -43,130 +46,351 @@ const Editor = () => {
     resetEditor,
   } = useEditor();
 
-  const { socket, connected } = useSocket(token);
+  const { socket, connected } =
+    useSocket(token);
 
   const [users, setUsers] = useState([]);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [roomError, setRoomError] = useState("");
+  const [roomError, setRoomError] =
+    useState("");
 
-  const isRemoteUpdate = useRef(false);
+  const isRemoteUpdate =
+    useRef(false);
 
+  /*
+   * Load room and project
+   */
   useEffect(() => {
-  if (!roomId) {
-    navigate("/dashboard", { replace: true });
-    return;
-  }
+    if (!roomId) {
+      navigate("/dashboard", {
+        replace: true,
+      });
 
-  const loadRoom = async () => {
-    try {
-      setLoading(true);
-      setRoomError("");
-
-      const response = await api.get(
-        `/rooms/${roomId}`
-      );
-
-      const currentRoom = response.data.room;
-
-      setRoom(currentRoom);
-
-      if (currentRoom.project?.files?.length) {
-        setFiles(currentRoom.project.files);
-      }
-    } catch (error) {
-      setRoomError(
-        getErrorMessage(
-          error,
-          "Unable to load this room."
-        )
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  loadRoom();
-}, [roomId, navigate, setRoom, setFiles]);
-  useEffect(() => {
-    if (!socket || !roomId || loading || roomError) {
       return;
     }
 
-    const currentUser = {
-      id: user?.id || user?._id,
-      name: user?.name || "User",
+    const loadRoom = async () => {
+      try {
+        setLoading(true);
+        setRoomError("");
+
+        const response = await api.get(
+          `/rooms/${roomId}`
+        );
+
+        const currentRoom =
+          response.data.room;
+
+        setRoom(currentRoom);
+
+        if (
+          currentRoom.project?.files
+        ) {
+          setFiles(
+            currentRoom.project.files
+          );
+        }
+      } catch (error) {
+        setRoomError(
+          getErrorMessage(
+            error,
+            "Unable to load this room."
+          )
+        );
+      } finally {
+        setLoading(false);
+      }
     };
 
-    socket.emit(SOCKET_EVENTS.JOIN_ROOM, {
-      roomId,
-      user: currentUser,
-    });
+    loadRoom();
+  }, [
+    roomId,
+    navigate,
+    setRoom,
+    setFiles,
+  ]);
 
-    const handleRoomUsers = (roomUsers = []) => {
+  /*
+   * Socket.IO room and collaboration events
+   */
+  useEffect(() => {
+    if (
+      !socket ||
+      !roomId ||
+      loading ||
+      roomError
+    ) {
+      return;
+    }
+
+    socket.emit(
+      SOCKET_EVENTS.JOIN_ROOM,
+      {
+        roomId,
+      }
+    );
+
+    /*
+     * Online users
+     */
+    const handleRoomUsers = (
+      roomUsers = []
+    ) => {
       setUsers(roomUsers);
     };
 
-    const handleUserJoined = (joinedUser) => {
-      if (!joinedUser) return;
+    const handleUserJoined = (
+      joinedUser
+    ) => {
+      if (!joinedUser) {
+        return;
+      }
 
       setUsers((currentUsers) => {
-        const exists = currentUsers.some(
-          (item) =>
-            String(item.id) === String(joinedUser.id)
-        );
+        const exists =
+          currentUsers.some(
+            (item) =>
+              String(item.id) ===
+              String(
+                joinedUser.id
+              )
+          );
 
-        return exists
-          ? currentUsers
-          : [...currentUsers, joinedUser];
+        if (exists) {
+          return currentUsers;
+        }
+
+        return [
+          ...currentUsers,
+          joinedUser,
+        ];
       });
     };
 
-    const handleUserLeft = (leftUser) => {
-      if (!leftUser) return;
+    const handleUserLeft = (
+      leftUser
+    ) => {
+      if (!leftUser) {
+        return;
+      }
 
       setUsers((currentUsers) =>
         currentUsers.filter(
           (item) =>
-            String(item.id) !== String(leftUser.id)
+            String(item.id) !==
+            String(leftUser.id)
         )
       );
     };
 
-    const handleCodeUpdate = (updatedFile) => {
-      if (!updatedFile) return;
+    /*
+     * Real-time code synchronization
+     */
+    const handleCodeUpdate = ({
+      fileId,
+      content,
+    }) => {
+      if (!fileId) {
+        return;
+      }
 
-      isRemoteUpdate.current = true;
-      updateFile(updatedFile);
+      isRemoteUpdate.current =
+        true;
+
+      updateFile({
+        id: fileId,
+        content,
+      });
 
       setTimeout(() => {
-        isRemoteUpdate.current = false;
+        isRemoteUpdate.current =
+          false;
       }, 0);
     };
 
-    const handleChatMessage = (message) => {
-      if (!message) return;
+    /*
+     * File created
+     */
+    const handleFileCreated = ({
+      file,
+    }) => {
+      if (!file) {
+        return;
+      }
 
-      setMessages((currentMessages) => [
-        ...currentMessages,
-        {
-          id:
-            message.id ||
-            `${Date.now()}-${Math.random()}`,
-          user: message.user || {
-            name: "User",
-          },
-          message: message.message || "",
-          time: message.time || "",
-        },
-      ]);
+      setFiles((currentFiles) => {
+        const newFileId =
+          getFileId(file);
+
+        const exists =
+          currentFiles.some(
+            (currentFile) =>
+              getFileId(
+                currentFile
+              ) === newFileId ||
+              currentFile.path ===
+                file.path
+          );
+
+        if (exists) {
+          return currentFiles;
+        }
+
+        return [
+          ...currentFiles,
+          file,
+        ];
+      });
     };
 
-    const handleCodeOutput = (result) => {
-      setOutput(result?.output || result?.message || "");
+    /*
+     * File deleted
+     */
+    const handleFileDeleted = ({
+      file,
+    }) => {
+      if (!file) {
+        return;
+      }
+
+      const deletedFileId =
+        getFileId(file);
+
+      setFiles((currentFiles) =>
+        currentFiles.filter(
+          (currentFile) =>
+            getFileId(
+              currentFile
+            ) !==
+            deletedFileId
+        )
+      );
+
+      /*
+       * If the deleted file is currently
+       * active, close it.
+       */
+      if (
+        activeFile &&
+        getFileId(activeFile) ===
+          deletedFileId
+      ) {
+        closeFile(
+          deletedFileId
+        );
+      }
+    };
+
+    /*
+     * File renamed
+     */
+    const handleFileRenamed = ({
+      file,
+    }) => {
+      if (!file) {
+        return;
+      }
+
+      const renamedFileId =
+        getFileId(file);
+
+      setFiles((currentFiles) =>
+        currentFiles.map(
+          (currentFile) => {
+            if (
+              getFileId(
+                currentFile
+              ) !== renamedFileId
+            ) {
+              return currentFile;
+            }
+
+            return {
+              ...currentFile,
+              id:
+                currentFile.id ||
+                file.id,
+              _id:
+                currentFile._id ||
+                file.id,
+              name: file.name,
+              path: file.path,
+              language:
+                file.language ||
+                currentFile.language,
+            };
+          }
+        )
+      );
+    };
+
+    /*
+     * Chat
+     */
+    const handleChatMessage = (
+      message
+    ) => {
+      if (!message) {
+        return;
+      }
+
+      setMessages(
+        (currentMessages) => [
+          ...currentMessages,
+          {
+            id:
+              message.id ||
+              `${Date.now()}-${Math.random()}`,
+            user:
+              message.user || {
+                name: "User",
+              },
+            message:
+              message.message || "",
+            time:
+              message.time ||
+              message.createdAt ||
+              "",
+          },
+        ]
+      );
+    };
+
+    /*
+     * Socket errors
+     */
+    const handleSocketError = (
+      error
+    ) => {
+      if (!error?.message) {
+        return;
+      }
+
+      console.error(
+        "Socket error:",
+        error.message
+      );
+    };
+
+    /*
+     * Code execution output
+     */
+    const handleCodeOutput = (
+      result
+    ) => {
+      setOutput(
+        result?.output ||
+          result?.message ||
+          ""
+      );
+
       setIsRunning(false);
     };
 
+    /*
+     * Register listeners
+     */
     socket.on(
       SOCKET_EVENTS.ROOM_USERS,
       handleRoomUsers
@@ -188,16 +412,45 @@ const Editor = () => {
     );
 
     socket.on(
+      SOCKET_EVENTS.FILE_CREATED,
+      handleFileCreated
+    );
+
+    socket.on(
+      SOCKET_EVENTS.FILE_DELETED,
+      handleFileDeleted
+    );
+
+    socket.on(
+      SOCKET_EVENTS.FILE_RENAMED,
+      handleFileRenamed
+    );
+
+    socket.on(
       SOCKET_EVENTS.CHAT_MESSAGE,
       handleChatMessage
     );
 
-    socket.on("code-output", handleCodeOutput);
+    socket.on(
+      "socket-error",
+      handleSocketError
+    );
 
+    socket.on(
+      "code-output",
+      handleCodeOutput
+    );
+
+    /*
+     * Cleanup
+     */
     return () => {
-      socket.emit(SOCKET_EVENTS.LEAVE_ROOM, {
-        roomId,
-      });
+      socket.emit(
+        SOCKET_EVENTS.LEAVE_ROOM,
+        {
+          roomId,
+        }
+      );
 
       socket.off(
         SOCKET_EVENTS.ROOM_USERS,
@@ -220,57 +473,226 @@ const Editor = () => {
       );
 
       socket.off(
+        SOCKET_EVENTS.FILE_CREATED,
+        handleFileCreated
+      );
+
+      socket.off(
+        SOCKET_EVENTS.FILE_DELETED,
+        handleFileDeleted
+      );
+
+      socket.off(
+        SOCKET_EVENTS.FILE_RENAMED,
+        handleFileRenamed
+      );
+
+      socket.off(
         SOCKET_EVENTS.CHAT_MESSAGE,
         handleChatMessage
       );
 
-      socket.off("code-output", handleCodeOutput);
+      socket.off(
+        "socket-error",
+        handleSocketError
+      );
+
+      socket.off(
+        "code-output",
+        handleCodeOutput
+      );
     };
   }, [
     socket,
     roomId,
-    user,
     loading,
     roomError,
     updateFile,
+    setFiles,
     setOutput,
     setIsRunning,
+    activeFile,
+    closeFile,
   ]);
 
+  /*
+   * Reset editor when leaving page
+   */
   useEffect(() => {
     return () => {
       resetEditor();
     };
   }, [resetEditor]);
 
+  /*
+   * Current editor code
+   */
   const currentCode = useMemo(
-    () => activeFile?.content || "",
+    () =>
+      activeFile?.content || "",
     [activeFile]
   );
 
-  const handleFileChange = (content) => {
+  /*
+   * Code change handler
+   */
+  const handleFileChange = (
+    content
+  ) => {
+    if (!activeFile) {
+      return;
+    }
+
     updateFileContent(content);
 
     if (
-      !socket ||
-      !roomId ||
-      !activeFile ||
       isRemoteUpdate.current
     ) {
       return;
     }
 
-    socket.emit(SOCKET_EVENTS.CODE_CHANGE, {
-      roomId,
-      fileId: activeFile.id,
-      path: activeFile.path,
-      content,
-      language: activeFile.language || language,
-    });
+    if (
+      !socket ||
+      !connected ||
+      !roomId
+    ) {
+      return;
+    }
+
+    const fileId =
+      getFileId(activeFile);
+
+    if (!fileId) {
+      return;
+    }
+
+    socket.emit(
+      SOCKET_EVENTS.CODE_CHANGE,
+      {
+        roomId,
+        fileId,
+        path: activeFile.path,
+        content,
+        language:
+          activeFile.language ||
+          language,
+      }
+    );
   };
 
+  /*
+   * Create file
+   */
+  const handleCreateFile = ({
+    name,
+    path,
+    content = "",
+  }) => {
+    if (
+      !socket ||
+      !connected ||
+      !roomId
+    ) {
+      return;
+    }
+
+    if (
+      !name?.trim() ||
+      !path?.trim()
+    ) {
+      return;
+    }
+
+    socket.emit(
+      SOCKET_EVENTS.FILE_CREATE,
+      {
+        roomId,
+        name: name.trim(),
+        path: path.trim(),
+        content,
+      }
+    );
+  };
+
+  /*
+   * Delete file
+   */
+  const handleDeleteFile = (
+    file
+  ) => {
+    if (
+      !socket ||
+      !connected ||
+      !roomId ||
+      !file
+    ) {
+      return;
+    }
+
+    const fileId =
+      getFileId(file);
+
+    if (!fileId) {
+      return;
+    }
+
+    socket.emit(
+      SOCKET_EVENTS.FILE_DELETE,
+      {
+        roomId,
+        fileId,
+      }
+    );
+  };
+
+  /*
+   * Rename file
+   */
+  const handleRenameFile = (
+    file,
+    name,
+    path
+  ) => {
+    if (
+      !socket ||
+      !connected ||
+      !roomId ||
+      !file
+    ) {
+      return;
+    }
+
+    const fileId =
+      getFileId(file);
+
+    if (
+      !fileId ||
+      !name?.trim() ||
+      !path?.trim()
+    ) {
+      return;
+    }
+
+    socket.emit(
+      SOCKET_EVENTS.FILE_RENAME,
+      {
+        roomId,
+        fileId,
+        name: name.trim(),
+        path: path.trim(),
+      }
+    );
+  };
+
+  /*
+   * Run code
+   */
   const handleRun = () => {
-    if (!activeFile || !socket) {
+    if (
+      !activeFile ||
+      !socket ||
+      !connected
+    ) {
       return;
     }
 
@@ -279,34 +701,63 @@ const Editor = () => {
 
     socket.emit("run-code", {
       roomId,
-      fileId: activeFile.id,
-      language,
+      fileId:
+        getFileId(activeFile),
+      language:
+        activeFile.language ||
+        language,
       code: currentCode,
     });
   };
 
+  /*
+   * Leave room
+   */
   const handleLeave = () => {
-    if (socket && roomId) {
-      socket.emit(SOCKET_EVENTS.LEAVE_ROOM, {
-        roomId,
-      });
+    if (
+      socket &&
+      roomId
+    ) {
+      socket.emit(
+        SOCKET_EVENTS.LEAVE_ROOM,
+        {
+          roomId,
+        }
+      );
     }
 
     resetEditor();
     navigate("/dashboard");
   };
 
-  const handleSendMessage = (message) => {
-    if (!socket || !roomId) {
+  /*
+   * Send chat message
+   */
+  const handleSendMessage = (
+    message
+  ) => {
+    if (
+      !socket ||
+      !connected ||
+      !roomId ||
+      !message?.trim()
+    ) {
       return;
     }
 
-    socket.emit(SOCKET_EVENTS.CHAT_MESSAGE, {
-      roomId,
-      message,
-    });
+    socket.emit(
+      SOCKET_EVENTS.CHAT_MESSAGE,
+      {
+        roomId,
+        message:
+          message.trim(),
+      }
+    );
   };
 
+  /*
+   * Loading state
+   */
   if (loading) {
     return (
       <div className="full-page-loading">
@@ -315,17 +766,27 @@ const Editor = () => {
     );
   }
 
+  /*
+   * Error state
+   */
   if (roomError) {
     return (
       <div className="full-page-loading">
         <div className="empty-state">
-          <h3>Unable to open room</h3>
-          <p>{roomError}</p>
+          <h3>
+            Unable to open room
+          </h3>
+
+          <p>
+            {roomError}
+          </p>
 
           <button
             className="button button--primary"
             type="button"
-            onClick={() => navigate("/dashboard")}
+            onClick={() =>
+              navigate("/dashboard")
+            }
           >
             Back to dashboard
           </button>
@@ -334,10 +795,16 @@ const Editor = () => {
     );
   }
 
+  /*
+   * Editor
+   */
   return (
     <div className="editor-page">
       <RoomHeader
-        roomName={room?.name || "Collaborative Room"}
+        roomName={
+          room?.name ||
+          "Collaborative Room"
+        }
         roomId={roomId}
         language={language}
         onRun={handleRun}
@@ -348,16 +815,22 @@ const Editor = () => {
         <div>
           <span
             className={`connection-dot ${
-              connected ? "connection-dot--online" : ""
+              connected
+                ? "connection-dot--online"
+                : ""
             }`}
           />
 
-          {connected ? "Connected" : "Connecting..."}
+          {connected
+            ? "Connected"
+            : "Connecting..."}
         </div>
 
         <span>
           {users.length}{" "}
-          {users.length === 1 ? "participant" : "participants"}
+          {users.length === 1
+            ? "participant"
+            : "participants"}
         </span>
       </div>
 
@@ -365,27 +838,53 @@ const Editor = () => {
         <Sidebar
           files={files}
           activeFile={
-            activeFile?.id || activeFile?.path
+            activeFile
+              ? getFileId(activeFile)
+              : null
           }
-          onFileSelect={selectFile}
+          onFileSelect={
+            selectFile
+          }
+          onCreateFile={
+            handleCreateFile
+          }
+          onDeleteFile={
+            handleDeleteFile
+          }
+          onRenameFile={
+            handleRenameFile
+          }
         />
 
         <section className="editor-main">
           <EditorTabs
             files={openFiles}
             activeFile={
-              activeFile?.id || activeFile?.path
+              activeFile
+                ? getFileId(
+                    activeFile
+                  )
+                : null
             }
-            onSelect={selectFile}
-            onClose={closeFile}
+            onSelect={
+              selectFile
+            }
+            onClose={
+              closeFile
+            }
           />
 
           <div className="editor-workspace">
             {activeFile ? (
               <CodeEditor
                 value={currentCode}
-                language={language}
-                onChange={handleFileChange}
+                language={
+                  activeFile.language ||
+                  language
+                }
+                onChange={
+                  handleFileChange
+                }
               />
             ) : (
               <div className="editor-empty">
@@ -393,10 +892,14 @@ const Editor = () => {
                   &lt;/&gt;
                 </div>
 
-                <h2>Start coding</h2>
+                <h2>
+                  Start coding
+                </h2>
 
                 <p>
-                  Select a file from the explorer to begin editing.
+                  Select a file from
+                  the explorer to begin
+                  editing.
                 </p>
               </div>
             )}
@@ -404,16 +907,24 @@ const Editor = () => {
 
           <Terminal
             output={output}
-            isRunning={isRunning}
+            isRunning={
+              isRunning
+            }
           />
         </section>
 
         <aside className="editor-right-panel">
-          <UserList users={users} />
+          <UserList
+            users={users}
+          />
 
           <ChatPanel
-            messages={messages}
-            onSendMessage={handleSendMessage}
+            messages={
+              messages
+            }
+            onSendMessage={
+              handleSendMessage
+            }
           />
         </aside>
       </main>

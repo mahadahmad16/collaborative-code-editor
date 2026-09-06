@@ -12,6 +12,8 @@ import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import roomRoutes from "./routes/roomRoutes.js";
 
+import socketHandler from "./socket/socketHandler.js";
+
 const app = express();
 const server = http.createServer(app);
 
@@ -60,13 +62,7 @@ const io = new Server(server, {
   },
 });
 
-io.on("connection", (socket) => {
-  console.log(`Socket connected: ${socket.id}`);
-
-  socket.on("disconnect", () => {
-    console.log(`Socket disconnected: ${socket.id}`);
-  });
-});
+socketHandler(io);
 
 server.listen(PORT, () => {
   console.log(`CodeSync server running on port ${PORT}`);

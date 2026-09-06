@@ -11,24 +11,16 @@ const CodeEditor = ({
       <Editor
         height="100%"
         language={language}
-        theme={theme}
         value={value}
-        onChange={(value) => onChange?.(value ?? "")}
+        onChange={(value) => onChange(value || "")}
+        theme="vs-dark"
         options={{
-          automaticLayout: true,
-          minimap: {
+            fontSize: 14,
+            minimap: {
             enabled: false,
           },
-          fontSize: 14,
-          lineNumbers: "on",
           wordWrap: "on",
-          padding: {
-            top: 16,
-            bottom: 16,
-          },
-          scrollBeyondLastLine: false,
-          smoothScrolling: true,
-          cursorBlinking: "smooth",
+          automaticLayout: true,
         }}
       />
     </div>

@@ -6,12 +6,14 @@ const projectFileSchema = new mongoose.Schema(
       type: String,
       required: [true, "File name is required"],
       trim: true,
+      maxlength: [100, "File name cannot exceed 100 characters"],
     },
 
     path: {
       type: String,
       required: [true, "File path is required"],
       trim: true,
+      maxlength: [300, "File path cannot exceed 300 characters"],
     },
 
     language: {

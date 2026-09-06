@@ -104,7 +104,7 @@ const Dashboard = () => {
             <div className="room-grid">
               {rooms.map((room) => (
                 <Link
-                  to={`/editor/${room.id || room._id}`}
+                  to={`/editor/${room.roomId}`}
                   className="room-card"
                   key={room.id || room._id}
                 >

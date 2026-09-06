@@ -1,11 +1,31 @@
 import FileItem from "./FileItem";
 
-const FileExplorer = ({ files = [], activeFile, onFileSelect }) => {
+const getFileId = (file) =>
+  String(
+    file?.id ||
+      file?._id ||
+      file?.path ||
+      ""
+  );
+
+const FileExplorer = ({
+  files = [],
+  activeFile,
+  onFileSelect,
+  onDeleteFile,
+  onRenameFile,
+}) => {
   return (
     <div className="file-explorer">
       <div className="file-explorer__folder">
-        <span className="file-explorer__arrow">⌄</span>
-        <span className="file-explorer__folder-icon">▰</span>
+        <span className="file-explorer__arrow">
+          ⌄
+        </span>
+
+        <span className="file-explorer__folder-icon">
+          ▰
+        </span>
+
         <span>src</span>
       </div>
 
@@ -13,14 +33,31 @@ const FileExplorer = ({ files = [], activeFile, onFileSelect }) => {
         {files.length > 0 ? (
           files.map((file) => (
             <FileItem
-              key={file.id || file.path || file.name}
+              key={getFileId(file)}
               file={file}
-              active={activeFile === file.id || activeFile === file.path}
-              onClick={() => onFileSelect?.(file)}
+              active={
+                getFileId(file) ===
+                String(activeFile || "")
+              }
+              onClick={() =>
+                onFileSelect?.(file)
+              }
+              onDelete={() =>
+                onDeleteFile?.(file)
+              }
+              onRename={(name, path) =>
+                onRenameFile?.(
+                  file,
+                  name,
+                  path
+                )
+              }
             />
           ))
         ) : (
-          <p className="file-explorer__empty">No files available</p>
+          <p className="file-explorer__empty">
+            No files available
+          </p>
         )}
       </div>
     </div>
