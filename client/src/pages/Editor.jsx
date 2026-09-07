@@ -46,17 +46,43 @@ const Editor = () => {
     resetEditor,
   } = useEditor();
 
-  const { socket, connected } =
-    useSocket(token);
+  const { socket, connected } = useSocket(token);
 
   const [users, setUsers] = useState([]);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [roomError, setRoomError] =
-    useState("");
+  const [roomError, setRoomError] = useState("");
 
-  const isRemoteUpdate =
-    useRef(false);
+  const activeFileRef = useRef(activeFile);
+  const userRef = useRef(user);
+  const closeFileRef = useRef(closeFile);
+  const updateFileRef = useRef(updateFile);
+  const selectFileRef = useRef(selectFile);
+  const setFilesRef = useRef(setFiles);
+
+  useEffect(() => {
+    activeFileRef.current = activeFile;
+  }, [activeFile]);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  useEffect(() => {
+    closeFileRef.current = closeFile;
+  }, [closeFile]);
+
+  useEffect(() => {
+    updateFileRef.current = updateFile;
+  }, [updateFile]);
+
+  useEffect(() => {
+    selectFileRef.current = selectFile;
+  }, [selectFile]);
+
+  useEffect(() => {
+    setFilesRef.current = setFiles;
+  }, [setFiles]);
 
   /*
    * Load room and project
@@ -79,17 +105,12 @@ const Editor = () => {
           `/rooms/${roomId}`
         );
 
-        const currentRoom =
-          response.data.room;
+        const currentRoom = response.data.room;
 
         setRoom(currentRoom);
 
-        if (
-          currentRoom.project?.files
-        ) {
-          setFiles(
-            currentRoom.project.files
-          );
+        if (currentRoom.project?.files) {
+          setFiles(currentRoom.project.files);
         }
       } catch (error) {
         setRoomError(
@@ -112,7 +133,7 @@ const Editor = () => {
   ]);
 
   /*
-   * Socket.IO room and collaboration events
+   * Socket.IO room lifecycle
    */
   useEffect(() => {
     if (
@@ -131,6 +152,34 @@ const Editor = () => {
       }
     );
 
+    return () => {
+      socket.emit(
+        SOCKET_EVENTS.LEAVE_ROOM,
+        {
+          roomId,
+        }
+      );
+    };
+  }, [
+    socket,
+    roomId,
+    loading,
+    roomError,
+  ]);
+
+  /*
+   * Socket.IO collaboration listeners
+   */
+  useEffect(() => {
+    if (
+      !socket ||
+      !roomId ||
+      loading ||
+      roomError
+    ) {
+      return;
+    }
+
     /*
      * Online users
      */
@@ -148,14 +197,11 @@ const Editor = () => {
       }
 
       setUsers((currentUsers) => {
-        const exists =
-          currentUsers.some(
-            (item) =>
-              String(item.id) ===
-              String(
-                joinedUser.id
-              )
-          );
+        const exists = currentUsers.some(
+          (item) =>
+            String(item.id) ===
+            String(joinedUser.id)
+        );
 
         if (exists) {
           return currentUsers;
@@ -188,116 +234,119 @@ const Editor = () => {
      * Real-time code synchronization
      */
     const handleCodeUpdate = ({
-      fileId,
-      content,
-    }) => {
-      if (!fileId) {
-        return;
-      }
+  fileId,
+  content,
+}) => {
+  if (!fileId) {
+    return;
+  }
 
-      isRemoteUpdate.current =
-        true;
-
-      updateFile({
-        id: fileId,
-        content,
-      });
-
-      setTimeout(() => {
-        isRemoteUpdate.current =
-          false;
-      }, 0);
-    };
+  updateFileRef.current({
+    id: fileId,
+    content,
+  });
+};
 
     /*
      * File created
      */
     const handleFileCreated = ({
-  file,
-  userId,
-}) => {
-  if (!file) {
-    return;
-  }
-
-  setFiles((currentFiles) => {
-    const newFileId = String(
-      getFileId(file)
-    );
-
-    const exists =
-      currentFiles.some(
-        (currentFile) =>
-          String(
-            getFileId(currentFile)
-          ) === newFileId ||
-          currentFile.path ===
-            file.path
-      );
-
-    if (exists) {
-      return currentFiles;
-    }
-
-    return [
-      ...currentFiles,
       file,
-    ];
-  });
+      userId,
+    }) => {
+      if (!file) {
+        return;
+      }
 
-  if (
-    String(userId) ===
-    String(user?.id || user?._id)
-  ) {
-    selectFile(file);
-  }
-};
+      setFilesRef.current((currentFiles) => {
+        const newFileId = String(
+          getFileId(file)
+        );
+
+        const exists = currentFiles.some(
+          (currentFile) =>
+            String(
+              getFileId(currentFile)
+            ) === newFileId ||
+            currentFile.path === file.path
+        );
+
+        if (exists) {
+          return currentFiles;
+        }
+
+        return [
+          ...currentFiles,
+          file,
+        ];
+      });
+
+      if (
+        String(userId) ===
+        String(
+          userRef.current?.id ||
+            userRef.current?._id
+        )
+      ) {
+        selectFileRef.current(file);
+      }
+    };
 
     /*
      * File deleted
      */
-    const handleFileDeleted = ({ file }) => {
-  if (!file) {
-    return;
-  }
+    const handleFileDeleted = ({
+      file,
+    }) => {
+      if (!file) {
+        return;
+      }
 
-  const deletedFileId = String(
-    getFileId(file)
-  );
+      const deletedFileId = String(
+        getFileId(file)
+      );
 
-  setFiles((currentFiles) =>
-    currentFiles.filter(
-      (currentFile) =>
+      setFilesRef.current(
+        (currentFiles) =>
+          currentFiles.filter(
+            (currentFile) =>
+              String(
+                getFileId(currentFile)
+              ) !== deletedFileId
+          )
+      );
+
+      const currentActiveFile =
+        activeFileRef.current;
+
+      if (
+        currentActiveFile &&
         String(
-          getFileId(currentFile)
-        ) !== deletedFileId
-    )
-  );
+          getFileId(currentActiveFile)
+        ) === deletedFileId
+      ) {
+        closeFileRef.current(file);
+      }
+    };
 
-  if (
-    activeFile &&
-    String(
-      getFileId(activeFile)
-    ) === deletedFileId
-  ) {
-    closeFile(file);
-  }
-};    
-
+    /*
+     * File renamed
+     */
     const handleFileRenamed = ({
-  file,
-}) => {
-  if (!file) {
-    return;
-  }
+      file,
+    }) => {
+      if (!file) {
+        return;
+      }
 
-  updateFile({
-    id: file.id || file._id,
-    name: file.name,
-    path: file.path,
-    language: file.language,
-  });
-};
+      updateFileRef.current({
+        id: file.id || file._id,
+        name: file.name,
+        path: file.path,
+        language: file.language,
+      });
+    };
+
     /*
      * Chat
      */
@@ -415,16 +464,9 @@ const Editor = () => {
     );
 
     /*
-     * Cleanup
+     * Remove listeners
      */
     return () => {
-      socket.emit(
-        SOCKET_EVENTS.LEAVE_ROOM,
-        {
-          roomId,
-        }
-      );
-
       socket.off(
         SOCKET_EVENTS.ROOM_USERS,
         handleRoomUsers
@@ -480,12 +522,8 @@ const Editor = () => {
     roomId,
     loading,
     roomError,
-    updateFile,
-    setFiles,
     setOutput,
     setIsRunning,
-    activeFile,
-    closeFile,
   ]);
 
   /*
@@ -501,57 +539,43 @@ const Editor = () => {
    * Current editor code
    */
   const currentCode = useMemo(
-    () =>
-      activeFile?.content || "",
+    () => activeFile?.content || "",
     [activeFile]
   );
 
   /*
    * Code change handler
    */
-  const handleFileChange = (
-    content
-  ) => {
-    if (!activeFile) {
-      return;
+  const handleFileChange = (content) => {
+  if (!activeFile) {
+    return;
+  }
+
+  updateFileContent(content);
+
+  if (
+    !socket ||
+    !connected ||
+    !roomId
+  ) {
+    return;
+  }
+
+  const fileId = getFileId(activeFile);
+
+  if (!fileId) {
+    return;
+  }
+
+  socket.emit(
+    SOCKET_EVENTS.CODE_CHANGE,
+    {
+      roomId,
+      fileId,
+      content,
     }
-
-    updateFileContent(content);
-
-    if (
-      isRemoteUpdate.current
-    ) {
-      return;
-    }
-
-    if (
-      !socket ||
-      !connected ||
-      !roomId
-    ) {
-      return;
-    }
-
-    const fileId =
-      getFileId(activeFile);
-
-    if (!fileId) {
-      return;
-    }
-
-    socket.emit(
-      SOCKET_EVENTS.CODE_CHANGE,
-      {
-        roomId,
-        fileId,
-        path: activeFile.path,
-        content,
-        language:
-          activeFile.language ||
-          language,
-      }
-    );
-  };
+  );
+};
 
   /*
    * Create file
@@ -674,8 +698,7 @@ const Editor = () => {
 
     socket.emit("run-code", {
       roomId,
-      fileId:
-        getFileId(activeFile),
+      fileId: getFileId(activeFile),
       language:
         activeFile.language ||
         language,
@@ -687,10 +710,7 @@ const Editor = () => {
    * Leave room
    */
   const handleLeave = () => {
-    if (
-      socket &&
-      roomId
-    ) {
+    if (socket && roomId) {
       socket.emit(
         SOCKET_EVENTS.LEAVE_ROOM,
         {
@@ -722,8 +742,7 @@ const Editor = () => {
       SOCKET_EVENTS.CHAT_MESSAGE,
       {
         roomId,
-        message:
-          message.trim(),
+        message: message.trim(),
       }
     );
   };
@@ -750,9 +769,7 @@ const Editor = () => {
             Unable to open room
           </h3>
 
-          <p>
-            {roomError}
-          </p>
+          <p>{roomError}</p>
 
           <button
             className="button button--primary"
@@ -815,9 +832,7 @@ const Editor = () => {
               ? getFileId(activeFile)
               : null
           }
-          onFileSelect={
-            selectFile
-          }
+          onFileSelect={selectFile}
           onCreateFile={
             handleCreateFile
           }
@@ -834,17 +849,11 @@ const Editor = () => {
             files={openFiles}
             activeFile={
               activeFile
-                ? getFileId(
-                    activeFile
-                  )
+                ? getFileId(activeFile)
                 : null
             }
-            onSelect={
-              selectFile
-            }
-            onClose={
-              closeFile
-            }
+            onSelect={selectFile}
+            onClose={closeFile}
           />
 
           <div className="editor-workspace">
@@ -880,21 +889,15 @@ const Editor = () => {
 
           <Terminal
             output={output}
-            isRunning={
-              isRunning
-            }
+            isRunning={isRunning}
           />
         </section>
 
         <aside className="editor-right-panel">
-          <UserList
-            users={users}
-          />
+          <UserList users={users} />
 
           <ChatPanel
-            messages={
-              messages
-            }
+            messages={messages}
             onSendMessage={
               handleSendMessage
             }

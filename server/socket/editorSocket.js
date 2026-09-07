@@ -52,64 +52,76 @@ const getProjectForRoom = async (
 
 const editorSocket = (io, socket) => {
   socket.on(
-    "code-change",
-    async ({
-      roomId,
-      fileId,
-      content,
-    }) => {
-      try {
-        if (
-          !roomId ||
-          !fileId ||
-          typeof content !== "string"
-        ) {
-          return;
-        }
-
-        if (socket.roomId !== roomId) {
-          return;
-        }
-
-        const result =
-          await getProjectForRoom(
-            roomId,
-            socket.user._id
-          );
-
-        if (result.error) {
-          return;
-        }
-
-        const { project } = result;
-
-        const file =
-          project.files.id(fileId);
-
-        if (!file) {
-          return;
-        }
-
-        file.content = content;
-
-        await project.save();
-
-        socket
-          .to(roomId)
-          .emit("code-update", {
-            fileId,
-            content,
-            userId:
-              String(socket.user._id),
-          });
-      } catch (error) {
-        console.error(
-          "Code change error:",
-          error
-        );
+  "code-change",
+  async ({ roomId, fileId, content }) => {
+    try {
+      if (
+        !roomId ||
+        !fileId ||
+        typeof content !== "string"
+      ) {
+        return;
       }
+
+      if (socket.roomId !== roomId) {
+        return;
+      }
+
+      const result =
+        await getProjectForRoom(
+          roomId,
+          socket.user._id
+        );
+
+      if (result.error) {
+        return;
+      }
+
+      const { project } = result;
+
+      const file = project.files.id(fileId);
+
+      if (!file) {
+        socket.emit("socket-error", {
+          message: "File not found",
+        });
+
+        return;
+      }
+
+      /*
+       * Broadcast immediately.
+       */
+      socket.to(roomId).emit(
+        "code-update",
+        {
+          fileId,
+          content,
+          userId: String(
+            socket.user._id
+          ),
+        }
+      );
+
+      /*
+       * Persist the latest content.
+       */
+      file.content = content;
+
+      await project.save();
+    } catch (error) {
+      console.error(
+        "Code change error:",
+        error
+      );
+
+      socket.emit("socket-error", {
+        message:
+          "Unable to synchronize code",
+      });
     }
-  );
+  }
+);
 
   socket.on(
     "file-create",
