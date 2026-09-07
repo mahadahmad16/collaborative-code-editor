@@ -44,6 +44,8 @@ export const SOCKET_EVENTS = {
 
   ROOM_USERS: "room-users",
 
+  INITIAL_STATE: "initial-state",
+
   CODE_CHANGE: "code-change",
   CODE_UPDATE: "code-update",
 

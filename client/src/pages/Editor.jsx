@@ -180,6 +180,53 @@ const Editor = () => {
       return;
     }
 
+    const handleInitialState = ({
+  files: initialFiles = [],
+}) => {
+  if (!Array.isArray(initialFiles)) {
+    return;
+  }
+
+  const currentActiveFile =
+    activeFileRef.current;
+
+  setFilesRef.current(
+    initialFiles
+  );
+
+  if (!currentActiveFile) {
+    const firstFile =
+      initialFiles[0];
+
+    if (firstFile) {
+      selectFileRef.current(
+        firstFile
+      );
+    }
+
+    return;
+  }
+
+  const matchingFile =
+    initialFiles.find(
+      (file) =>
+        String(
+          getFileId(file)
+        ) ===
+        String(
+          getFileId(
+            currentActiveFile
+          )
+        )
+    );
+
+  if (matchingFile) {
+    updateFileRef.current(
+      matchingFile
+    );
+  }
+};
+
     /*
      * Online users
      */
@@ -413,6 +460,12 @@ const Editor = () => {
     /*
      * Register listeners
      */
+
+    socket.on(
+      SOCKET_EVENTS.INITIAL_STATE,
+      handleInitialState
+    );
+
     socket.on(
       SOCKET_EVENTS.ROOM_USERS,
       handleRoomUsers
@@ -467,6 +520,12 @@ const Editor = () => {
      * Remove listeners
      */
     return () => {
+
+      socket.off(
+        SOCKET_EVENTS.INITIAL_STATE,
+        handleInitialState
+      );
+
       socket.off(
         SOCKET_EVENTS.ROOM_USERS,
         handleRoomUsers
