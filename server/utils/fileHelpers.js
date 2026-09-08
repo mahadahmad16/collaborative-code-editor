@@ -1,38 +1,18 @@
-export const normalizeFileName = (name = "") => {
-  return name.trim();
-};
+export const getFileExtension = (filename = "") => {
+  const parts = filename.split(".");
 
-export const normalizeFilePath = (path = "") => {
-  return path
-    .trim()
-    .replace(/\\/g, "/")
-    .replace(/^\/+|\/+$/g, "");
-};
-
-export const isValidFileName = (name = "") => {
-  const normalizedName = normalizeFileName(name);
-
-  if (!normalizedName) {
-    return false;
+  if (parts.length < 2) {
+    return "";
   }
 
-  if (normalizedName.length > 100) {
-    return false;
-  }
-
-  return !/[<>:"|?*\x00-\x1F]/.test(
-    normalizedName
-  );
+  return parts.pop().toLowerCase();
 };
 
-export const getFileLanguage = (
+export const getLanguageFromExtension = (
   filename = ""
 ) => {
   const extension =
-    filename
-      .split(".")
-      .pop()
-      .toLowerCase();
+    getFileExtension(filename);
 
   const languages = {
     js: "javascript",
@@ -48,5 +28,8 @@ export const getFileLanguage = (
     md: "markdown",
   };
 
-  return languages[extension] || "plaintext";
+  return (
+    languages[extension] ||
+    "plaintext"
+  );
 };

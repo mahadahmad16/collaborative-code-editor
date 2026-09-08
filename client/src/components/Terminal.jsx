@@ -1,28 +1,108 @@
-const Terminal = ({ output = "", isRunning = false }) => {
+import { useState } from "react";
+
+const Terminal = ({
+  output = "",
+  isRunning = false,
+  stdin = "",
+  onStdinChange,
+  onClear,
+}) => {
+  const [activeTab, setActiveTab] =
+    useState("output");
+
   return (
     <section className="terminal">
       <div className="terminal__header">
-        <div className="terminal__tabs">
-          <span className="terminal__tab terminal__tab--active">
-            Terminal
+        <div className="terminal__title">
+          <span className="terminal__icon">
+            $
           </span>
-          <span className="terminal__tab">Output</span>
+
+          <span>Terminal</span>
         </div>
 
-        <button className="terminal__clear" type="button">
-          Clear
-        </button>
+        <div className="terminal__actions">
+          <button
+            className={`terminal__tab ${
+              activeTab === "output"
+                ? "terminal__tab--active"
+                : ""
+            }`}
+            type="button"
+            onClick={() =>
+              setActiveTab("output")
+            }
+          >
+            Output
+          </button>
+
+          <button
+            className={`terminal__tab ${
+              activeTab === "input"
+                ? "terminal__tab--active"
+                : ""
+            }`}
+            type="button"
+            onClick={() =>
+              setActiveTab("input")
+            }
+          >
+            Input
+          </button>
+
+          <button
+            className="terminal__clear"
+            type="button"
+            onClick={onClear}
+          >
+            Clear
+          </button>
+        </div>
       </div>
 
       <div className="terminal__body">
-        {isRunning ? (
-          <span className="terminal__status">Running...</span>
+        {activeTab === "input" ? (
+          <div className="terminal__input-wrapper">
+            <label
+              className="terminal__input-label"
+              htmlFor="terminal-input"
+            >
+              Standard Input
+            </label>
+
+            <textarea
+              id="terminal-input"
+              className="terminal__input"
+              value={stdin}
+              onChange={(event) =>
+                onStdinChange?.(
+                  event.target.value
+                )
+              }
+              placeholder={
+                "Enter program input here...\nExample:\n10\n20"
+              }
+              spellCheck={false}
+            />
+
+            <p className="terminal__input-hint">
+              Each line is passed to the
+              program as standard input.
+            </p>
+          </div>
+        ) : isRunning ? (
+          <div className="terminal__message">
+            Executing code...
+          </div>
         ) : output ? (
-          <pre>{output}</pre>
+          <pre className="terminal__output">
+            {output}
+          </pre>
         ) : (
-          <span className="terminal__placeholder">
-            Run your code to see the output here.
-          </span>
+          <div className="terminal__message">
+            Run your code to see the output
+            here.
+          </div>
         )}
       </div>
     </section>

@@ -53,6 +53,8 @@ const Editor = () => {
   const [loading, setLoading] = useState(true);
   const [roomError, setRoomError] = useState("");
 
+  const [stdin, setStdin] = useState("");
+
   const activeFileRef = useRef(activeFile);
   const userRef = useRef(user);
   const closeFileRef = useRef(closeFile);
@@ -445,18 +447,40 @@ const Editor = () => {
     /*
      * Code execution output
      */
-    const handleCodeOutput = (
-      result
-    ) => {
-      setOutput(
-        result?.output ||
-          result?.message ||
-          ""
-      );
+    const handleCodeOutput = (result) => {
+  if (!result) {
+    setOutput(
+      "No execution result received."
+    );
 
-      setIsRunning(false);
-    };
+    setIsRunning(false);
 
+    return;
+  }
+
+  let finalOutput =
+    result.output ||
+    result.message ||
+    "Program finished without output.";
+
+  if (
+    result.time !== null &&
+    result.time !== undefined
+  ) {
+    finalOutput += `\n\nExecution time: ${result.time}s`;
+  }
+
+  if (
+    result.memory !== null &&
+    result.memory !== undefined
+  ) {
+    finalOutput += `\nMemory: ${result.memory} KB`;
+  }
+
+  setOutput(finalOutput);
+
+  setIsRunning(false);
+};
     /*
      * Register listeners
      */
@@ -744,26 +768,69 @@ const Editor = () => {
    * Run code
    */
   const handleRun = () => {
-    if (
-      !activeFile ||
-      !socket ||
-      !connected
-    ) {
-      return;
-    }
+  if (!activeFile) {
+    setOutput(
+      "Select a file before running the code."
+    );
 
-    setIsRunning(true);
-    setOutput("");
+    return;
+  }
 
-    socket.emit("run-code", {
+  if (!socket || !connected) {
+    setOutput(
+      "Not connected to the server."
+    );
+
+    return;
+  }
+
+  const fileId =
+    getFileId(activeFile);
+
+  if (!fileId) {
+    setOutput(
+      "Unable to identify the selected file."
+    );
+
+    return;
+  }
+
+  const selectedLanguage =
+    activeFile.language ||
+    language;
+
+  const supportedLanguages = [
+    "javascript",
+    "java",
+  ];
+
+  if (
+    !supportedLanguages.includes(
+      selectedLanguage
+    )
+  ) {
+    setOutput(
+      `Code execution for ${selectedLanguage} is not available yet.`
+    );
+
+    return;
+  }
+
+  setIsRunning(true);
+  setOutput("Running code...");
+
+  socket.emit(
+    "run-code",
+    {
       roomId,
-      fileId: getFileId(activeFile),
+      fileId,
       language:
-        activeFile.language ||
-        language,
+        selectedLanguage,
       code: currentCode,
-    });
-  };
+      stdin,
+    }
+  );
+};
 
   /*
    * Leave room
@@ -949,6 +1016,9 @@ const Editor = () => {
           <Terminal
             output={output}
             isRunning={isRunning}
+            stdin={stdin}
+            onStdinChange={setStdin}
+            onClear={() => setOutput("")}
           />
         </section>
 

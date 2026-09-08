@@ -3,6 +3,14 @@ import Project from "../models/Project.js";
 
 import liveProjects from "./liveState.js";
 
+import {
+  getLanguageFromExtension,
+} from "../utils/fileHelpers.js";
+
+import {
+  executeCode,
+} from "../services/codeExecutionService.js";
+
 const saveTimers = new Map();
 
 const getFileId = (file) =>
@@ -169,6 +177,172 @@ const editorSocket = (io, socket) => {
   );
 
   socket.on(
+  "run-code",
+  async ({
+    roomId,
+    fileId,
+    language,
+    code,
+    stdin = "",
+  }) => {
+    try {
+      if (
+        !roomId ||
+        !fileId ||
+        !language ||
+        typeof code !== "string"
+      ) {
+        socket.emit(
+          "code-output",
+          {
+            success: false,
+            output:
+              "Invalid code execution request.",
+            error:
+              "Missing execution data.",
+          }
+        );
+
+        return;
+      }
+
+      if (socket.roomId !== roomId) {
+        socket.emit(
+          "code-output",
+          {
+            success: false,
+            output:
+              "You are not connected to this room.",
+            error:
+              "Invalid room.",
+          }
+        );
+
+        return;
+      }
+
+      const liveProject =
+        liveProjects.get(roomId);
+
+      if (!liveProject) {
+        socket.emit(
+          "code-output",
+          {
+            success: false,
+            output:
+              "Project state is not available.",
+            error:
+              "Project state not found.",
+          }
+        );
+
+        return;
+      }
+
+      const file =
+        liveProject.files.find(
+          (item) =>
+            String(item.id) ===
+            String(fileId)
+        );
+
+      if (!file) {
+        socket.emit(
+          "code-output",
+          {
+            success: false,
+            output:
+              "File not found.",
+            error:
+              "The selected file does not exist.",
+          }
+        );
+
+        return;
+      }
+
+      console.log("Executing code:", {
+  language,
+  fileId,
+  stdin: JSON.stringify(stdin),
+});
+
+const result =
+  await executeCode({
+    language,
+    code,
+    stdin,
+  });
+
+      const outputParts = [];
+
+      if (result.stdout) {
+        outputParts.push(
+          result.stdout.trimEnd()
+        );
+      }
+
+      if (result.stderr) {
+        outputParts.push(
+          result.stderr.trimEnd()
+        );
+      }
+
+      if (result.compileOutput) {
+        outputParts.push(
+          result.compileOutput.trimEnd()
+        );
+      }
+
+      if (result.message) {
+        outputParts.push(
+          result.message
+        );
+      }
+
+      socket.emit(
+        "code-output",
+        {
+          success:
+            result.status?.id === 3,
+          output:
+            outputParts.join("\n"),
+          stdout:
+            result.stdout,
+          stderr:
+            result.stderr,
+          compileOutput:
+            result.compileOutput,
+          status:
+            result.status,
+          time:
+            result.time,
+          memory:
+            result.memory,
+        }
+      );
+    } catch (error) {
+      console.error(
+        "Code execution error:",
+        error.message
+      );
+
+      socket.emit(
+        "code-output",
+        {
+          success: false,
+          output:
+            error.message ||
+            "Unable to execute code.",
+          error:
+            error.message,
+        }
+      );
+    }
+  }
+);
+
+  socket.on(
     "file-create",
     async ({
       roomId,
@@ -229,7 +403,7 @@ const editorSocket = (io, socket) => {
         const newFile = project.files.create({
           name: normalizedName,
           path: normalizedPath,
-          language: "plaintext",
+          language: getLanguageFromExtension(normalizedName),
           content,
         });
 
