@@ -74,11 +74,16 @@ const Terminal = ({
               id="terminal-input"
               className="terminal__input"
               value={stdin}
-              onChange={(event) =>
-                onStdinChange?.(
-                  event.target.value
-                )
-              }
+              onChange={(event) => {
+                const value = event.target.value;
+
+                console.log(
+                  "TERMINAL INPUT:",
+                  JSON.stringify(value)
+                );
+
+                onStdinChange?.(value);
+              }}
               placeholder={
                 "Enter program input here...\nExample:\n10\n20"
               }

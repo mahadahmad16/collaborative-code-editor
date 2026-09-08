@@ -55,6 +55,15 @@ const Editor = () => {
 
   const [stdin, setStdin] = useState("");
 
+  const handleStdinChange = (value) => {
+    console.log(
+      "EDITOR STDIN:",
+      JSON.stringify(value)
+    );
+
+  setStdin(value);
+};
+
   const activeFileRef = useRef(activeFile);
   const userRef = useRef(user);
   const closeFileRef = useRef(closeFile);
@@ -772,7 +781,6 @@ const Editor = () => {
     setOutput(
       "Select a file before running the code."
     );
-
     return;
   }
 
@@ -780,24 +788,20 @@ const Editor = () => {
     setOutput(
       "Not connected to the server."
     );
-
     return;
   }
 
-  const fileId =
-    getFileId(activeFile);
+  const fileId = getFileId(activeFile);
 
   if (!fileId) {
     setOutput(
       "Unable to identify the selected file."
     );
-
     return;
   }
 
   const selectedLanguage =
-    activeFile.language ||
-    language;
+    activeFile.language || language;
 
   const supportedLanguages = [
     "javascript",
@@ -812,26 +816,26 @@ const Editor = () => {
     setOutput(
       `Code execution for ${selectedLanguage} is not available yet.`
     );
-
     return;
   }
+
+  console.log("RUNNING CODE:", {
+    language: selectedLanguage,
+    stdin: JSON.stringify(stdin),
+    code: currentCode,
+  });
 
   setIsRunning(true);
   setOutput("Running code...");
 
-  socket.emit(
-    "run-code",
-    {
-      roomId,
-      fileId,
-      language:
-        selectedLanguage,
-      code: currentCode,
-      stdin,
-    }
-  );
+  socket.emit("run-code", {
+    roomId,
+    fileId,
+    language: selectedLanguage,
+    code: currentCode,
+    stdin: stdin || "",
+  });
 };
-
   /*
    * Leave room
    */
@@ -1017,9 +1021,13 @@ const Editor = () => {
             output={output}
             isRunning={isRunning}
             stdin={stdin}
-            onStdinChange={setStdin}
+            onStdinChange={handleStdinChange}
             onClear={() => setOutput("")}
           />
+
+          <div>
+            DEBUG INPUT: {JSON.stringify(stdin)}
+          </div>
         </section>
 
         <aside className="editor-right-panel">
