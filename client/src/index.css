@@ -1400,8 +1400,6 @@ select:focus {
   gap: 1px;
   width: min(1180px, calc(100% - 48px));
   margin: 0 auto;
-  padding-bottom: 100px;
-  background: var(--border);
   border: 1px solid var(--border);
 }
 
@@ -2063,4 +2061,24 @@ select:focus {
   margin: 8px 0 0;
   font-size: 11px;
   opacity: 0.5;
+}
+
+.delete-room-btn {
+  background: #dc2626;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.2s ease;
+}
+
+.delete-room-btn:hover {
+  background: #b91c1c;
+}
+
+.delete-room-btn:active {
+  background: #991b1b;
 }

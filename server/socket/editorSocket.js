@@ -111,6 +111,45 @@ const scheduleFileSave = (
 };
 
 const editorSocket = (io, socket) => {
+
+  socket.on(
+  "cursor-move",
+  ({
+    roomId,
+    fileId,
+    position,
+    selection,
+  }) => {
+    try {
+      if (
+        !roomId ||
+        !fileId ||
+        !position ||
+        socket.roomId !== roomId
+      ) {
+        return;
+      }
+
+      socket.to(roomId).emit(
+        "cursor-move",
+        {
+          userId: String(socket.user._id),
+          userName: socket.user.name,
+          fileId,
+          position,
+          selection,
+        }
+      );
+    } catch (error) {
+      console.error(
+        "Cursor move socket error:",
+        error.message
+      );
+    }
+  }
+);
+
+
   socket.on(
     "code-change",
     async ({ roomId, fileId, content }) => {
@@ -187,11 +226,10 @@ const editorSocket = (io, socket) => {
   }) => {
     try {
       if (
-        !roomId ||
-        !fileId ||
-        !language ||
-        typeof code !== "string"
-      ) {
+  !roomId ||
+  !fileId ||
+  typeof code !== "string"
+) {
         socket.emit(
           "code-output",
           {
@@ -267,11 +305,14 @@ const editorSocket = (io, socket) => {
   stdin: JSON.stringify(stdin),
 });
 
-const result =
-  await executeCode({
-    language,
-    code,
-    stdin,
+  const executionLanguage =
+    file.language || language;
+
+  const result =
+    await executeCode({
+      language: executionLanguage,
+      code,
+      stdin,
   });
 
       const outputParts = [];
@@ -630,16 +671,20 @@ const result =
           return;
         }
 
-        projectFile.name =
-          normalizedName;
+        const newLanguage =
+  getLanguageFromExtension(
+    normalizedName
+  );
 
-        projectFile.path =
-          normalizedPath;
+        projectFile.name = normalizedName;
+        projectFile.path = normalizedPath;
+        projectFile.language = newLanguage;
 
         await project.save();
 
         file.name = normalizedName;
         file.path = normalizedPath;
+        file.language = newLanguage;
 
         io.to(roomId).emit(
           "file-renamed",

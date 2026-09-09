@@ -1,15 +1,19 @@
 const RoomHeader = ({
-  roomName = "Untitled Room",
-  roomId = "",
-  language = "JavaScript",
+  roomName,
+  roomId,
+  language,
   onRun,
   onLeave,
+  onDelete,
+  isOwner,
 }) => {
   const copyRoomId = async () => {
     if (!roomId) return;
 
     try {
-      await navigator.clipboard.writeText(roomId);
+      await navigator.clipboard.writeText(
+        roomId
+      );
     } catch {
       // Clipboard access may be unavailable.
     }
@@ -20,6 +24,7 @@ const RoomHeader = ({
       <div className="room-header__info">
         <div className="room-header__title">
           <span className="room-header__indicator" />
+
           <h2>{roomName}</h2>
         </div>
 
@@ -36,7 +41,9 @@ const RoomHeader = ({
       </div>
 
       <div className="room-header__actions">
-        <span className="room-header__language">{language}</span>
+        <span className="room-header__language">
+          {language}
+        </span>
 
         <button
           className="button button--primary"
@@ -53,6 +60,16 @@ const RoomHeader = ({
         >
           Leave
         </button>
+
+        {isOwner && (
+          <button
+            className="delete-room-btn"
+            type="button"
+            onClick={onDelete}
+          >
+            Delete Room
+          </button>
+        )}
       </div>
     </header>
   );

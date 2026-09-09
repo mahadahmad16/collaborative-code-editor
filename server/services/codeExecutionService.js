@@ -2,9 +2,17 @@ const JUDGE0_URL =
   process.env.JUDGE0_URL ||
   "https://ce.judge0.com";
 
-const LANGUAGE_IDS = {
-  javascript: 63,
+  const LANGUAGE_IDS = {
+  javascript: 102,
+  typescript: 101,
+  python: 109,
   java: 62,
+  c: 103,
+  cpp: 105,
+  csharp: 51,
+  go: 107,
+  rust: 108,
+  php: 98,
 };
 
 const TERMINAL_STATUSES = new Set([

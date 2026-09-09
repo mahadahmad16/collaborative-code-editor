@@ -58,19 +58,25 @@ const roomSchema = new mongoose.Schema(
     members: [roomMemberSchema],
 
     language: {
-      type: String,
-      enum: [
-        "javascript",
-        "typescript",
-        "python",
-        "java",
-        "html",
-        "css",
-        "json",
-        "markdown",
-      ],
-      default: "javascript",
-    },
+  type: String,
+  enum: [
+    "javascript",
+    "typescript",
+    "python",
+    "java",
+    "c",
+    "cpp",
+    "csharp",
+    "go",
+    "rust",
+    "php",
+    "html",
+    "css",
+    "json",
+    "markdown",
+  ],
+  default: "javascript",
+},
 
     project: {
       type: mongoose.Schema.Types.ObjectId,

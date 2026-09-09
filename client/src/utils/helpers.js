@@ -30,14 +30,36 @@ export const getLanguageFromExtension = (filename = "") => {
   const languages = {
     js: "javascript",
     jsx: "javascript",
+
     ts: "typescript",
     tsx: "typescript",
+
     py: "python",
+
     java: "java",
+
+    c: "c",
+
+    cpp: "cpp",
+    cc: "cpp",
+    cxx: "cpp",
+    hpp: "cpp",
+
+    cs: "csharp",
+
+    go: "go",
+
+    rs: "rust",
+
+    php: "php",
+
     html: "html",
     htm: "html",
+
     css: "css",
+
     json: "json",
+
     md: "markdown",
   };
 
@@ -94,4 +116,29 @@ export const getErrorMessage = (error, fallback = "Something went wrong") => {
     error?.message ||
     fallback
   );
+};
+
+export const getCursorColor = (userId = "") => {
+  const colors = [
+    "#FF6B6B",
+    "#4D96FF",
+    "#6BCB77",
+    "#FFD93D",
+    "#C77DFF",
+    "#FF922B",
+    "#20C997",
+    "#F06595",
+  ];
+
+  let hash = 0;
+
+  for (let index = 0; index < userId.length; index++) {
+    hash =
+      userId.charCodeAt(index) +
+      ((hash << 5) - hash);
+  }
+
+  return colors[
+    Math.abs(hash) % colors.length
+  ];
 };

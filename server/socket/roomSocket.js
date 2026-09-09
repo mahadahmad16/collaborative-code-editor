@@ -77,8 +77,8 @@ const roomSocket = (
           return;
         }
 
-        const isMember =
-          room.members.some(
+        const currentMember =
+          room.members.find(
             (member) =>
               String(
                 member.user._id
@@ -88,7 +88,7 @@ const roomSocket = (
               )
           );
 
-        if (!isMember) {
+        if (!currentMember) {
           socket.emit(
             "socket-error",
             {
@@ -114,6 +114,14 @@ const roomSocket = (
 
         socket.roomId =
           roomId;
+
+        socket.isRoomOwner =
+          String(
+            room.owner
+          ) ===
+          String(
+            socket.user._id
+          );
 
         if (
           !roomUsers.has(
@@ -220,6 +228,42 @@ const roomSocket = (
   );
 
   socket.on(
+    "room-deleted",
+    ({ roomId }) => {
+      if (
+        !roomId ||
+        socket.roomId !== roomId ||
+        !socket.isRoomOwner
+      ) {
+        return;
+      }
+
+      socket.to(roomId).emit(
+        "room-deleted"
+      );
+
+      roomUsers.delete(
+        roomId
+      );
+
+      liveProjects.delete(
+        roomId
+      );
+
+      io.in(roomId).socketsLeave(
+        roomId
+      );
+
+      socket.roomId = null;
+      socket.isRoomOwner = false;
+
+      console.log(
+        `${socket.user.name} deleted room ${roomId}`
+      );
+    }
+  );
+
+  socket.on(
     "disconnect",
     () => {
       handleLeaveRoom(
@@ -274,6 +318,7 @@ const handleLeaveRoom = (
   socket.leave(roomId);
 
   socket.roomId = null;
+  socket.isRoomOwner = false;
 };
 
 export default roomSocket;

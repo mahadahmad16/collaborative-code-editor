@@ -1,5 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+
+import {
+  useNavigate,
+  useParams,
+} from "react-router-dom";
 
 import Sidebar from "../components/Sidebar";
 import EditorTabs from "../components/EditorTabs";
@@ -16,10 +25,15 @@ import useSocket from "../hooks/useSocket";
 
 import { api } from "../services/api";
 import { SOCKET_EVENTS } from "../utils/constants";
-import { getErrorMessage } from "../utils/helpers";
+import {
+  getErrorMessage,
+  getCursorColor,
+} from "../utils/helpers";
 
 const getFileId = (file) =>
-  file?.id || file?._id || file?.path;
+  file?.id ||
+  file?._id ||
+  file?.path;
 
 const Editor = () => {
   const { roomId } = useParams();
@@ -46,94 +60,157 @@ const Editor = () => {
     resetEditor,
   } = useEditor();
 
-  const { socket, connected } = useSocket(token);
+  const {
+    socket,
+    connected,
+  } = useSocket(token);
 
-  const [users, setUsers] = useState([]);
-  const [messages, setMessages] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [roomError, setRoomError] = useState("");
+  const [users, setUsers] =
+    useState([]);
 
-  const [stdin, setStdin] = useState("");
+  const [messages, setMessages] =
+    useState([]);
 
-  const handleStdinChange = (value) => {
-    console.log(
-      "EDITOR STDIN:",
-      JSON.stringify(value)
+  const [loading, setLoading] =
+    useState(true);
+
+  const [roomError, setRoomError] =
+    useState("");
+
+  const [stdin, setStdin] =
+    useState("");
+
+  const [remoteCursors, setRemoteCursors] =
+    useState({});
+
+  const isOwner =
+    String(
+      room?.owner?._id ||
+        room?.owner
+    ) ===
+    String(
+      user?.id ||
+        user?._id
     );
 
-  setStdin(value);
-};
+  const editorRef =
+    useRef(null);
 
-  const activeFileRef = useRef(activeFile);
-  const userRef = useRef(user);
-  const closeFileRef = useRef(closeFile);
-  const updateFileRef = useRef(updateFile);
-  const selectFileRef = useRef(selectFile);
-  const setFilesRef = useRef(setFiles);
+  const cursorDecorationRef =
+    useRef([]);
+
+  const cursorThrottleRef =
+    useRef(null);
+
+  const pendingCursorRef =
+    useRef(null);
+
+  const activeFileRef =
+    useRef(activeFile);
+
+  const userRef =
+    useRef(user);
+
+  const closeFileRef =
+    useRef(closeFile);
+
+  const updateFileRef =
+    useRef(updateFile);
+
+  const selectFileRef =
+    useRef(selectFile);
+
+  const setFilesRef =
+    useRef(setFiles);
 
   useEffect(() => {
-    activeFileRef.current = activeFile;
+    activeFileRef.current =
+      activeFile;
   }, [activeFile]);
 
   useEffect(() => {
-    userRef.current = user;
+    userRef.current =
+      user;
   }, [user]);
 
   useEffect(() => {
-    closeFileRef.current = closeFile;
+    closeFileRef.current =
+      closeFile;
   }, [closeFile]);
 
   useEffect(() => {
-    updateFileRef.current = updateFile;
+    updateFileRef.current =
+      updateFile;
   }, [updateFile]);
 
   useEffect(() => {
-    selectFileRef.current = selectFile;
+    selectFileRef.current =
+      selectFile;
   }, [selectFile]);
 
   useEffect(() => {
-    setFilesRef.current = setFiles;
+    setFilesRef.current =
+      setFiles;
   }, [setFiles]);
+
+  const handleStdinChange = (
+    value
+  ) => {
+    setStdin(value);
+  };
 
   /*
    * Load room and project
    */
   useEffect(() => {
     if (!roomId) {
-      navigate("/dashboard", {
-        replace: true,
-      });
+      navigate(
+        "/dashboard",
+        {
+          replace: true,
+        }
+      );
 
       return;
     }
 
-    const loadRoom = async () => {
-      try {
-        setLoading(true);
-        setRoomError("");
+    const loadRoom =
+      async () => {
+        try {
+          setLoading(true);
+          setRoomError("");
 
-        const response = await api.get(
-          `/rooms/${roomId}`
-        );
+          const response =
+            await api.get(
+              `/rooms/${roomId}`
+            );
 
-        const currentRoom = response.data.room;
+          const currentRoom =
+            response.data.room;
 
-        setRoom(currentRoom);
+          setRoom(
+            currentRoom
+          );
 
-        if (currentRoom.project?.files) {
-          setFiles(currentRoom.project.files);
+          if (
+            currentRoom.project
+              ?.files
+          ) {
+            setFiles(
+              currentRoom.project.files
+            );
+          }
+        } catch (error) {
+          setRoomError(
+            getErrorMessage(
+              error,
+              "Unable to load this room."
+            )
+          );
+        } finally {
+          setLoading(false);
         }
-      } catch (error) {
-        setRoomError(
-          getErrorMessage(
-            error,
-            "Unable to load this room."
-          )
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
+      };
 
     loadRoom();
   }, [
@@ -192,51 +269,57 @@ const Editor = () => {
     }
 
     const handleInitialState = ({
-  files: initialFiles = [],
-}) => {
-  if (!Array.isArray(initialFiles)) {
-    return;
-  }
-
-  const currentActiveFile =
-    activeFileRef.current;
-
-  setFilesRef.current(
-    initialFiles
-  );
-
-  if (!currentActiveFile) {
-    const firstFile =
-      initialFiles[0];
-
-    if (firstFile) {
-      selectFileRef.current(
-        firstFile
-      );
-    }
-
-    return;
-  }
-
-  const matchingFile =
-    initialFiles.find(
-      (file) =>
-        String(
-          getFileId(file)
-        ) ===
-        String(
-          getFileId(
-            currentActiveFile
-          )
+      files: initialFiles = [],
+    }) => {
+      if (
+        !Array.isArray(
+          initialFiles
         )
-    );
+      ) {
+        return;
+      }
 
-  if (matchingFile) {
-    updateFileRef.current(
-      matchingFile
-    );
-  }
-};
+      const currentActiveFile =
+        activeFileRef.current;
+
+      setFilesRef.current(
+        initialFiles
+      );
+
+      if (
+        !currentActiveFile
+      ) {
+        const firstFile =
+          initialFiles[0];
+
+        if (firstFile) {
+          selectFileRef.current(
+            firstFile
+          );
+        }
+
+        return;
+      }
+
+      const matchingFile =
+        initialFiles.find(
+          (file) =>
+            String(
+              getFileId(file)
+            ) ===
+            String(
+              getFileId(
+                currentActiveFile
+              )
+            )
+        );
+
+      if (matchingFile) {
+        updateFileRef.current(
+          matchingFile
+        );
+      }
+    };
 
     /*
      * Online users
@@ -244,7 +327,9 @@ const Editor = () => {
     const handleRoomUsers = (
       roomUsers = []
     ) => {
-      setUsers(roomUsers);
+      setUsers(
+        roomUsers
+      );
     };
 
     const handleUserJoined = (
@@ -254,24 +339,34 @@ const Editor = () => {
         return;
       }
 
-      setUsers((currentUsers) => {
-        const exists = currentUsers.some(
-          (item) =>
-            String(item.id) ===
-            String(joinedUser.id)
-        );
+      setUsers(
+        (currentUsers) => {
+          const exists =
+            currentUsers.some(
+              (item) =>
+                String(
+                  item.id
+                ) ===
+                String(
+                  joinedUser.id
+                )
+            );
 
-        if (exists) {
-          return currentUsers;
+          if (exists) {
+            return currentUsers;
+          }
+
+          return [
+            ...currentUsers,
+            joinedUser,
+          ];
         }
-
-        return [
-          ...currentUsers,
-          joinedUser,
-        ];
-      });
+      );
     };
 
+    /*
+     * User left
+     */
     const handleUserLeft = (
       leftUser
     ) => {
@@ -279,12 +374,114 @@ const Editor = () => {
         return;
       }
 
-      setUsers((currentUsers) =>
-        currentUsers.filter(
-          (item) =>
-            String(item.id) !==
-            String(leftUser.id)
-        )
+      setUsers(
+        (currentUsers) =>
+          currentUsers.filter(
+            (item) =>
+              String(
+                item.id
+              ) !==
+              String(
+                leftUser.id
+              )
+          )
+      );
+
+      setRemoteCursors(
+        (currentCursors) => {
+          const updatedCursors = {
+            ...currentCursors,
+          };
+
+          delete updatedCursors[
+            String(
+              leftUser.id
+            )
+          ];
+
+          return updatedCursors;
+        }
+      );
+    };
+
+    /*
+     * Room deleted
+     */
+    const handleRoomDeleted = () => {
+      alert(
+        "This room has been deleted by the owner."
+      );
+
+      resetEditor();
+
+      navigate(
+        "/dashboard",
+        {
+          replace: true,
+        }
+      );
+    };
+
+    /*
+     * Real-time remote cursor
+     */
+    const handleCursorMove = (
+      cursor
+    ) => {
+      if (
+        !cursor ||
+        !cursor.userId ||
+        !cursor.fileId ||
+        !cursor.position
+      ) {
+        return;
+      }
+
+      const currentUserId =
+        String(
+          userRef.current?.id ||
+            userRef.current?._id ||
+            ""
+        );
+
+      if (
+        String(
+          cursor.userId
+        ) === currentUserId
+      ) {
+        return;
+      }
+
+      setRemoteCursors(
+        (currentCursors) => ({
+          ...currentCursors,
+          [String(
+            cursor.userId
+          )]: {
+            userId:
+              String(
+                cursor.userId
+              ),
+            userName:
+              cursor.userName ||
+              "Anonymous",
+            fileId:
+              String(
+                cursor.fileId
+              ),
+            position: {
+              lineNumber:
+                cursor.position
+                  .lineNumber,
+              column:
+                cursor.position
+                  .column,
+            },
+            selection:
+              cursor.selection ||
+              null,
+          },
+        })
       );
     };
 
@@ -292,18 +489,18 @@ const Editor = () => {
      * Real-time code synchronization
      */
     const handleCodeUpdate = ({
-  fileId,
-  content,
-}) => {
-  if (!fileId) {
-    return;
-  }
+      fileId,
+      content,
+    }) => {
+      if (!fileId) {
+        return;
+      }
 
-  updateFileRef.current({
-    id: fileId,
-    content,
-  });
-};
+      updateFileRef.current({
+        id: fileId,
+        content,
+      });
+    };
 
     /*
      * File created
@@ -316,28 +513,35 @@ const Editor = () => {
         return;
       }
 
-      setFilesRef.current((currentFiles) => {
-        const newFileId = String(
-          getFileId(file)
-        );
-
-        const exists = currentFiles.some(
-          (currentFile) =>
+      setFilesRef.current(
+        (currentFiles) => {
+          const newFileId =
             String(
-              getFileId(currentFile)
-            ) === newFileId ||
-            currentFile.path === file.path
-        );
+              getFileId(file)
+            );
 
-        if (exists) {
-          return currentFiles;
+          const exists =
+            currentFiles.some(
+              (currentFile) =>
+                String(
+                  getFileId(
+                    currentFile
+                  )
+                ) === newFileId ||
+                currentFile.path ===
+                  file.path
+            );
+
+          if (exists) {
+            return currentFiles;
+          }
+
+          return [
+            ...currentFiles,
+            file,
+          ];
         }
-
-        return [
-          ...currentFiles,
-          file,
-        ];
-      });
+      );
 
       if (
         String(userId) ===
@@ -346,7 +550,9 @@ const Editor = () => {
             userRef.current?._id
         )
       ) {
-        selectFileRef.current(file);
+        selectFileRef.current(
+          file
+        );
       }
     };
 
@@ -360,18 +566,51 @@ const Editor = () => {
         return;
       }
 
-      const deletedFileId = String(
-        getFileId(file)
-      );
+      const deletedFileId =
+        String(
+          getFileId(file)
+        );
 
       setFilesRef.current(
         (currentFiles) =>
           currentFiles.filter(
             (currentFile) =>
               String(
-                getFileId(currentFile)
-              ) !== deletedFileId
+                getFileId(
+                  currentFile
+                )
+              ) !==
+              deletedFileId
           )
+      );
+
+      setRemoteCursors(
+        (currentCursors) => {
+          const updatedCursors =
+            {};
+
+          Object.entries(
+            currentCursors
+          ).forEach(
+            ([
+              userId,
+              cursor,
+            ]) => {
+              if (
+                String(
+                  cursor.fileId
+                ) !==
+                deletedFileId
+              ) {
+                updatedCursors[
+                  userId
+                ] = cursor;
+              }
+            }
+          );
+
+          return updatedCursors;
+        }
       );
 
       const currentActiveFile =
@@ -380,10 +619,15 @@ const Editor = () => {
       if (
         currentActiveFile &&
         String(
-          getFileId(currentActiveFile)
-        ) === deletedFileId
+          getFileId(
+            currentActiveFile
+          )
+        ) ===
+          deletedFileId
       ) {
-        closeFileRef.current(file);
+        closeFileRef.current(
+          file
+        );
       }
     };
 
@@ -398,10 +642,13 @@ const Editor = () => {
       }
 
       updateFileRef.current({
-        id: file.id || file._id,
+        id:
+          file.id ||
+          file._id,
         name: file.name,
         path: file.path,
-        language: file.language,
+        language:
+          file.language,
       });
     };
 
@@ -427,7 +674,8 @@ const Editor = () => {
                 name: "User",
               },
             message:
-              message.message || "",
+              message.message ||
+              "",
             time:
               message.time ||
               message.createdAt ||
@@ -456,44 +704,58 @@ const Editor = () => {
     /*
      * Code execution output
      */
-    const handleCodeOutput = (result) => {
-  if (!result) {
-    setOutput(
-      "No execution result received."
-    );
+    const handleCodeOutput = (
+      result
+    ) => {
+      if (!result) {
+        setOutput(
+          "No execution result received."
+        );
 
-    setIsRunning(false);
+        setIsRunning(
+          false
+        );
 
-    return;
-  }
+        return;
+      }
 
-  let finalOutput =
-    result.output ||
-    result.message ||
-    "Program finished without output.";
+      let finalOutput =
+        result.output ||
+        result.message ||
+        "Program finished without output.";
 
-  if (
-    result.time !== null &&
-    result.time !== undefined
-  ) {
-    finalOutput += `\n\nExecution time: ${result.time}s`;
-  }
+      if (
+        result.time !==
+          null &&
+        result.time !==
+          undefined
+      ) {
+        finalOutput +=
+          `\n\nExecution time: ${result.time}s`;
+      }
 
-  if (
-    result.memory !== null &&
-    result.memory !== undefined
-  ) {
-    finalOutput += `\nMemory: ${result.memory} KB`;
-  }
+      if (
+        result.memory !==
+          null &&
+        result.memory !==
+          undefined
+      ) {
+        finalOutput +=
+          `\nMemory: ${result.memory} KB`;
+      }
 
-  setOutput(finalOutput);
+      setOutput(
+        finalOutput
+      );
 
-  setIsRunning(false);
-};
+      setIsRunning(
+        false
+      );
+    };
+
     /*
      * Register listeners
      */
-
     socket.on(
       SOCKET_EVENTS.INITIAL_STATE,
       handleInitialState
@@ -512,6 +774,16 @@ const Editor = () => {
     socket.on(
       SOCKET_EVENTS.USER_LEFT,
       handleUserLeft
+    );
+
+    socket.on(
+      "room-deleted",
+      handleRoomDeleted
+    );
+
+    socket.on(
+      SOCKET_EVENTS.CURSOR_MOVE,
+      handleCursorMove
     );
 
     socket.on(
@@ -553,7 +825,6 @@ const Editor = () => {
      * Remove listeners
      */
     return () => {
-
       socket.off(
         SOCKET_EVENTS.INITIAL_STATE,
         handleInitialState
@@ -572,6 +843,16 @@ const Editor = () => {
       socket.off(
         SOCKET_EVENTS.USER_LEFT,
         handleUserLeft
+      );
+
+      socket.off(
+        "room-deleted",
+        handleRoomDeleted
+      );
+
+      socket.off(
+        SOCKET_EVENTS.CURSOR_MOVE,
+        handleCursorMove
       );
 
       socket.off(
@@ -616,6 +897,228 @@ const Editor = () => {
     roomError,
     setOutput,
     setIsRunning,
+    resetEditor,
+    navigate,
+  ]);
+
+  /*
+   * Store Monaco editor instance
+   */
+  const handleEditorMount = (
+    editor
+  ) => {
+    editorRef.current =
+      editor;
+  };
+
+  /*
+   * Send local cursor position
+   */
+  useEffect(() => {
+    if (
+      !editorRef.current ||
+      !socket ||
+      !connected
+    ) {
+      return;
+    }
+
+    const editor =
+      editorRef.current;
+
+    const sendCursorPosition = (
+      event
+    ) => {
+      const currentFile =
+        activeFileRef.current;
+
+      if (
+        !currentFile ||
+        !roomId
+      ) {
+        return;
+      }
+
+      const fileId =
+        getFileId(
+          currentFile
+        );
+
+      if (!fileId) {
+        return;
+      }
+
+      const selection =
+        editor.getSelection();
+
+      const cursorData = {
+        roomId,
+        fileId,
+        position: {
+          lineNumber:
+            event.position
+              .lineNumber,
+          column:
+            event.position
+              .column,
+        },
+        selection:
+          selection
+            ? {
+                startLineNumber:
+                  selection.startLineNumber,
+                startColumn:
+                  selection.startColumn,
+                endLineNumber:
+                  selection.endLineNumber,
+                endColumn:
+                  selection.endColumn,
+              }
+            : null,
+      };
+
+      pendingCursorRef.current =
+        cursorData;
+
+      if (
+        cursorThrottleRef.current
+      ) {
+        return;
+      }
+
+      cursorThrottleRef.current =
+        setTimeout(() => {
+          if (
+            pendingCursorRef.current
+          ) {
+            socket.emit(
+              SOCKET_EVENTS.CURSOR_MOVE,
+              pendingCursorRef.current
+            );
+          }
+
+          pendingCursorRef.current =
+            null;
+
+          cursorThrottleRef.current =
+            null;
+        }, 50);
+    };
+
+    const disposable =
+      editor.onDidChangeCursorPosition(
+        sendCursorPosition
+      );
+
+    return () => {
+      disposable.dispose();
+
+      if (
+        cursorThrottleRef.current
+      ) {
+        clearTimeout(
+          cursorThrottleRef.current
+        );
+
+        cursorThrottleRef.current =
+          null;
+      }
+
+      pendingCursorRef.current =
+        null;
+    };
+  }, [
+    socket,
+    connected,
+    roomId,
+  ]);
+
+  /*
+   * Render remote cursors
+   */
+  useEffect(() => {
+    const editor =
+      editorRef.current;
+
+    if (!editor) {
+      return;
+    }
+
+    const decorations =
+      [];
+
+    Object.values(
+      remoteCursors
+    ).forEach(
+      (cursor) => {
+        if (
+          !activeFile ||
+          String(
+            cursor.fileId
+          ) !==
+            String(
+              getFileId(
+                activeFile
+              )
+            )
+        ) {
+          return;
+        }
+
+        if (
+          !cursor.position
+            ?.lineNumber ||
+          !cursor.position
+            ?.column
+        ) {
+          return;
+        }
+
+        const color =
+          getCursorColor(
+            cursor.userId
+          );
+
+        decorations.push({
+          range: {
+            startLineNumber:
+              cursor.position
+                .lineNumber,
+            startColumn:
+              cursor.position
+                .column,
+            endLineNumber:
+              cursor.position
+                .lineNumber,
+            endColumn:
+              cursor.position
+                .column,
+          },
+          options: {
+            className:
+              "remote-cursor",
+            hoverMessage: {
+              value:
+                cursor.userName ||
+                "Anonymous",
+            },
+            overviewRuler: {
+              color,
+              position: 4,
+            },
+          },
+        });
+      }
+    );
+
+    cursorDecorationRef.current =
+      editor.deltaDecorations(
+        cursorDecorationRef.current,
+        decorations
+      );
+  }, [
+    remoteCursors,
+    activeFile,
   ]);
 
   /*
@@ -630,44 +1133,54 @@ const Editor = () => {
   /*
    * Current editor code
    */
-  const currentCode = useMemo(
-    () => activeFile?.content || "",
-    [activeFile]
-  );
+  const currentCode =
+    useMemo(
+      () =>
+        activeFile?.content ||
+        "",
+      [activeFile]
+    );
 
   /*
    * Code change handler
    */
-  const handleFileChange = (content) => {
-  if (!activeFile) {
-    return;
-  }
-
-  updateFileContent(content);
-
-  if (
-    !socket ||
-    !connected ||
-    !roomId
-  ) {
-    return;
-  }
-
-  const fileId = getFileId(activeFile);
-
-  if (!fileId) {
-    return;
-  }
-
-  socket.emit(
-    SOCKET_EVENTS.CODE_CHANGE,
-    {
-      roomId,
-      fileId,
-      content,
+  const handleFileChange = (
+    content
+  ) => {
+    if (!activeFile) {
+      return;
     }
-  );
-};
+
+    updateFileContent(
+      content
+    );
+
+    if (
+      !socket ||
+      !connected ||
+      !roomId
+    ) {
+      return;
+    }
+
+    const fileId =
+      getFileId(
+        activeFile
+      );
+
+    if (!fileId) {
+      return;
+    }
+
+    socket.emit(
+      SOCKET_EVENTS.CODE_CHANGE,
+      {
+        roomId,
+        fileId,
+        content,
+      }
+    );
+  };
 
   /*
    * Create file
@@ -696,8 +1209,10 @@ const Editor = () => {
       SOCKET_EVENTS.FILE_CREATE,
       {
         roomId,
-        name: name.trim(),
-        path: path.trim(),
+        name:
+          name.trim(),
+        path:
+          path.trim(),
         content,
       }
     );
@@ -767,8 +1282,10 @@ const Editor = () => {
       {
         roomId,
         fileId,
-        name: name.trim(),
-        path: path.trim(),
+        name:
+          name.trim(),
+        path:
+          path.trim(),
       }
     );
   };
@@ -777,70 +1294,102 @@ const Editor = () => {
    * Run code
    */
   const handleRun = () => {
-  if (!activeFile) {
-    setOutput(
-      "Select a file before running the code."
+    if (!activeFile) {
+      setOutput(
+        "Select a file before running the code."
+      );
+
+      return;
+    }
+
+    if (
+      !socket ||
+      !connected
+    ) {
+      setOutput(
+        "Not connected to the server."
+      );
+
+      return;
+    }
+
+    const fileId =
+      getFileId(
+        activeFile
+      );
+
+    if (!fileId) {
+      setOutput(
+        "Unable to identify the selected file."
+      );
+
+      return;
+    }
+
+    const selectedLanguage =
+      activeFile.language ||
+      language;
+
+    const supportedLanguages =
+      [
+        "javascript",
+        "typescript",
+        "python",
+        "java",
+        "c",
+        "cpp",
+        "csharp",
+        "go",
+        "rust",
+        "php",
+      ];
+
+    if (
+      !supportedLanguages.includes(
+        selectedLanguage
+      )
+    ) {
+      setOutput(
+        `Code execution for ${selectedLanguage} is not available yet.`
+      );
+
+      return;
+    }
+
+    const executionInput =
+      stdin;
+
+    setIsRunning(
+      true
     );
-    return;
-  }
 
-  if (!socket || !connected) {
     setOutput(
-      "Not connected to the server."
+      "Running code..."
     );
-    return;
-  }
 
-  const fileId = getFileId(activeFile);
-
-  if (!fileId) {
-    setOutput(
-      "Unable to identify the selected file."
+    socket.emit(
+      "run-code",
+      {
+        roomId,
+        fileId,
+        language:
+          selectedLanguage,
+        code:
+          currentCode,
+        stdin:
+          executionInput,
+      }
     );
-    return;
-  }
+  };
 
-  const selectedLanguage =
-    activeFile.language || language;
-
-  const supportedLanguages = [
-    "javascript",
-    "java",
-  ];
-
-  if (
-    !supportedLanguages.includes(
-      selectedLanguage
-    )
-  ) {
-    setOutput(
-      `Code execution for ${selectedLanguage} is not available yet.`
-    );
-    return;
-  }
-
-  console.log("RUNNING CODE:", {
-    language: selectedLanguage,
-    stdin: JSON.stringify(stdin),
-    code: currentCode,
-  });
-
-  setIsRunning(true);
-  setOutput("Running code...");
-
-  socket.emit("run-code", {
-    roomId,
-    fileId,
-    language: selectedLanguage,
-    code: currentCode,
-    stdin: stdin || "",
-  });
-};
   /*
    * Leave room
    */
   const handleLeave = () => {
-    if (socket && roomId) {
+    if (
+      socket &&
+      roomId
+    ) {
       socket.emit(
         SOCKET_EVENTS.LEAVE_ROOM,
         {
@@ -850,8 +1399,68 @@ const Editor = () => {
     }
 
     resetEditor();
-    navigate("/dashboard");
+
+    navigate(
+      "/dashboard"
+    );
   };
+
+  /*
+   * Delete room
+   */
+  const handleDeleteRoom =
+    async () => {
+      if (!isOwner) {
+        return;
+      }
+
+      const confirmed =
+        window.confirm(
+          "Are you sure you want to delete this room? This action cannot be undone."
+        );
+
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        await api.delete(
+          `/rooms/${roomId}`
+        );
+
+        if (
+          socket &&
+          connected
+        ) {
+          socket.emit(
+            "room-deleted",
+            {
+              roomId,
+            }
+          );
+        }
+
+        resetEditor();
+
+        navigate(
+          "/dashboard",
+          {
+            replace: true,
+          }
+        );
+      } catch (error) {
+        console.error(
+          "Delete room error:",
+          error
+        );
+
+        alert(
+          error.response
+            ?.data?.message ||
+            "Failed to delete room"
+        );
+      }
+    };
 
   /*
    * Send chat message
@@ -872,7 +1481,8 @@ const Editor = () => {
       SOCKET_EVENTS.CHAT_MESSAGE,
       {
         roomId,
-        message: message.trim(),
+        message:
+          message.trim(),
       }
     );
   };
@@ -899,13 +1509,17 @@ const Editor = () => {
             Unable to open room
           </h3>
 
-          <p>{roomError}</p>
+          <p>
+            {roomError}
+          </p>
 
           <button
             className="button button--primary"
             type="button"
             onClick={() =>
-              navigate("/dashboard")
+              navigate(
+                "/dashboard"
+              )
             }
           >
             Back to dashboard
@@ -927,8 +1541,18 @@ const Editor = () => {
         }
         roomId={roomId}
         language={language}
-        onRun={handleRun}
-        onLeave={handleLeave}
+        onRun={
+          handleRun
+        }
+        onLeave={
+          handleLeave
+        }
+        onDelete={
+          handleDeleteRoom
+        }
+        isOwner={
+          isOwner
+        }
       />
 
       <div className="editor-statusbar">
@@ -948,7 +1572,8 @@ const Editor = () => {
 
         <span>
           {users.length}{" "}
-          {users.length === 1
+          {users.length ===
+          1
             ? "participant"
             : "participants"}
         </span>
@@ -959,10 +1584,14 @@ const Editor = () => {
           files={files}
           activeFile={
             activeFile
-              ? getFileId(activeFile)
+              ? getFileId(
+                  activeFile
+                )
               : null
           }
-          onFileSelect={selectFile}
+          onFileSelect={
+            selectFile
+          }
           onCreateFile={
             handleCreateFile
           }
@@ -976,26 +1605,39 @@ const Editor = () => {
 
         <section className="editor-main">
           <EditorTabs
-            files={openFiles}
+            files={
+              openFiles
+            }
             activeFile={
               activeFile
-                ? getFileId(activeFile)
+                ? getFileId(
+                    activeFile
+                  )
                 : null
             }
-            onSelect={selectFile}
-            onClose={closeFile}
+            onSelect={
+              selectFile
+            }
+            onClose={
+              closeFile
+            }
           />
 
           <div className="editor-workspace">
             {activeFile ? (
               <CodeEditor
-                value={currentCode}
+                value={
+                  currentCode
+                }
                 language={
                   activeFile.language ||
                   language
                 }
                 onChange={
                   handleFileChange
+                }
+                onEditorMount={
+                  handleEditorMount
                 }
               />
             ) : (
@@ -1018,23 +1660,33 @@ const Editor = () => {
           </div>
 
           <Terminal
-            output={output}
-            isRunning={isRunning}
-            stdin={stdin}
-            onStdinChange={handleStdinChange}
-            onClear={() => setOutput("")}
+            output={
+              output
+            }
+            isRunning={
+              isRunning
+            }
+            stdin={
+              stdin
+            }
+            onStdinChange={
+              handleStdinChange
+            }
+            onClear={() =>
+              setOutput("")
+            }
           />
-
-          <div>
-            DEBUG INPUT: {JSON.stringify(stdin)}
-          </div>
         </section>
 
         <aside className="editor-right-panel">
-          <UserList users={users} />
+          <UserList
+            users={users}
+          />
 
           <ChatPanel
-            messages={messages}
+            messages={
+              messages
+            }
             onSendMessage={
               handleSendMessage
             }

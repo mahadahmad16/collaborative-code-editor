@@ -215,6 +215,7 @@ const LandingPage = () => {
           </p>
         </div>
       </section>
+        <br /><br /><br />
     </main>
   );
 };

@@ -5,6 +5,7 @@ const CodeEditor = ({
   language = "javascript",
   theme = "vs-dark",
   onChange,
+  onEditorMount,
 }) => {
   return (
     <div className="code-editor">
@@ -13,6 +14,7 @@ const CodeEditor = ({
         language={language}
         value={value}
         onChange={(value) => onChange(value || "")}
+        onMount={onEditorMount}
         theme="vs-dark"
         options={{
             fontSize: 14,
