@@ -18,14 +18,18 @@ const app = express();
 const server = http.createServer(app);
 
 const PORT = process.env.PORT || 4000;
-const CLIENT_URL =
-  process.env.CLIENT_URL || "http://localhost:5173";
+
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  process.env.CLIENT_URL,
+].filter(Boolean);
 
 connectDB();
 
 app.use(
   cors({
-    origin: CLIENT_URL,
+    origin: allowedOrigins,
     credentials: true,
   })
 );
@@ -56,7 +60,7 @@ app.use("/api/rooms", roomRoutes);
 
 const io = new Server(server, {
   cors: {
-    origin: CLIENT_URL,
+    origin: allowedOrigins,
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   },
@@ -64,6 +68,6 @@ const io = new Server(server, {
 
 socketHandler(io);
 
-server.listen(PORT, () => {
+server.listen(PORT, "0.0.0.0", () => {
   console.log(`CodeSync server running on port ${PORT}`);
 });
